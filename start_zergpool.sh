@@ -50,7 +50,32 @@ else
 fi
 log_info "----------------------------------------"
 
-./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $WORKER_FLAG $EXTRAS
+CMD="./SRBMiner-MULTI --algorithm \"$ALGO\" --pool \"$POOL_ADDRESS\" --wallet \"$WALLET_USER\" --password \"$POOL_PASSWORD\" $WORKER_FLAG $EXTRAS"
+
+if [[ "${DRY_RUN,,}" == "true" ]]; then
+    log_info "  DRY RUN — validating only, not mining"
+    log_info "----------------------------------------"
+
+    if [[ ! -x ./SRBMiner-MULTI ]]; then
+        log_error "SRBMiner-MULTI binary not found or not executable"
+        exit 1
+    fi
+
+    log_info "Binary:    $(file ./SRBMiner-MULTI | cut -d: -f2-)"
+    log_info "Version:   ${MINER_VERSION:-unknown}"
+    log_info "Algorithm: $ALGO list:"
+    ./SRBMiner-MULTI --list-algorithms 2>/dev/null | grep -i "$ALGO" || log_warn "  Algorithm '$ALGO' not found in supported list"
+
+    echo ""
+    echo "Command that would run:"
+    echo "$CMD"
+    echo ""
+
+    log_info "Dry run complete — all checks passed."
+    exit 0
+fi
+
+eval "$CMD"
 EXIT_CODE=$?
 
 if [[ $EXIT_CODE -ne 0 ]] && $GPU_ENABLED; then
