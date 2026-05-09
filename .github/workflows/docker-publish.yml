@@ -5,6 +5,9 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -17,12 +20,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Extract version from Dockerfile
+      - name: Extract version and MD5 from Dockerfile
         id: version
         run: |
           VERSION=$(grep -oP 'ARG VERSION_TAG=\K[0-9.]+' Dockerfile)
+          MD5=$(grep -oP 'ARG EXPECTED_MD5=\K[0-9a-f]+' Dockerfile)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Version: $VERSION"
+          echo "md5=$MD5" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION  MD5: $MD5"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -45,6 +50,7 @@ jobs:
           push: true
           build-args: |
             VERSION_TAG=${{ steps.version.outputs.version }}
+            EXPECTED_MD5=${{ steps.version.outputs.md5 }}
           tags: |
             ghcr.io/m8477/srbminer-multi-docker:latest
             ghcr.io/m8477/srbminer-multi-docker:${{ steps.version.outputs.version }}

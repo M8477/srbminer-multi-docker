@@ -1,6 +1,7 @@
 FROM debian:trixie-slim
 
 ARG VERSION_TAG=2.9.8
+ARG EXPECTED_MD5=4c3976d4f846d700b44331919bc4d7a7
 
 ENV ALGO="kheavyhash"
 ENV POOL_ADDRESS="stratum+tcp://heavyhash.eu.mine.zergpool.com:5137"
@@ -11,15 +12,14 @@ ENV LOG_LEVEL="info"
 
 RUN apt-get -y update \
     && apt-get -y upgrade \
-    && apt-get -y install curl wget ca-certificates xz-utils tar \
+    && apt-get -y install curl wget ca-certificates tar \
     && update-ca-certificates \
     && cd /opt \
     && VERSION_STRING=$(echo "$VERSION_TAG" | tr '.' '-') \
-    && wget -nv https://github.com/doktor83/SRBMiner-Multi/releases/download/${VERSION_TAG}/SRBMiner-Multi-${VERSION_STRING}-Linux.tar.xz -O SRBMiner.tar.xz \
-    && wget -nv https://github.com/doktor83/SRBMiner-Multi/releases/download/${VERSION_TAG}/SRBMiner-Multi-${VERSION_STRING}-Linux.tar.xz.sha256 -O SRBMiner.tar.xz.sha256 \
-    && echo "$(cat SRBMiner.tar.xz.sha256 | awk '{print $1}')  SRBMiner.tar.xz" | sha256sum -c - \
-    && tar xf SRBMiner.tar.xz \
-    && rm -rf SRBMiner.tar.xz SRBMiner.tar.xz.sha256 \
+    && wget -nv https://github.com/doktor83/SRBMiner-Multi/releases/download/${VERSION_TAG}/SRBMiner-Multi-${VERSION_STRING}-Linux.tar.gz -O SRBMiner.tar.gz \
+    && echo "${EXPECTED_MD5}  SRBMiner.tar.gz" | md5sum -c - \
+    && tar xf SRBMiner.tar.gz \
+    && rm -rf SRBMiner.tar.gz \
     && mv /opt/SRBMiner-Multi-${VERSION_STRING}/ /opt/SRBMiner-Multi/ \
     && groupadd -r srbminer && useradd -r -g srbminer -d /opt/SRBMiner-Multi -s /bin/bash srbminer \
     && apt-get -y autoremove --purge \
