@@ -91,6 +91,18 @@ Solar panels → Home Assistant sensors
 + EXTRAS=--api-enable --api-port 21550
 ```
 
+## Version Updates
+
+A [scheduled GitHub Action](.github/workflows/version-check.yml) checks daily for new [SRBMiner-Multi releases](https://github.com/doktor83/SRBMiner-Multi/releases). When a new version is detected, it automatically opens a PR updating `VERSION_TAG` and `EXPECTED_MD5`.
+
+**Manual bump:** Update these two lines in `Dockerfile`, then push:
+```diff
+-ARG VERSION_TAG=2.9.8
+-ARG EXPECTED_MD5=4c3976d4f846d700b44331919bc4d7a7
++ARG VERSION_TAG=2.9.9
++ARG EXPECTED_MD5=<md5 from release notes>
+```
+
 ## Local Build
 
 Build the miner image locally:

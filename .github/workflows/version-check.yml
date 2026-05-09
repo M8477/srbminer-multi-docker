@@ -1,0 +1,105 @@
+name: Version Check
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get latest SRBMiner release
+        id: latest
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/doktor83/SRBMiner-Multi/releases/latest | jq -r '.tag_name')
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "Latest release: $LATEST"
+
+      - name: Get current version from Dockerfile
+        id: current
+        run: |
+          CURRENT=$(grep -oP 'ARG VERSION_TAG=\K[0-9.]+' Dockerfile)
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "Current version: $CURRENT"
+
+      - name: Check if update needed
+        id: check
+        run: |
+          if [ "${{ steps.latest.outputs.latest }}" != "${{ steps.current.outputs.current }}" ]; then
+            echo "update=true" >> "$GITHUB_OUTPUT"
+            echo "New version ${{ steps.latest.outputs.latest }} available (current: ${{ steps.current.outputs.current }})"
+          else
+            echo "update=false" >> "$GITHUB_OUTPUT"
+            echo "Already at latest version ${{ steps.current.outputs.current }}"
+          fi
+
+      - name: Get MD5 hash for new release
+        if: steps.check.outputs.update == 'true'
+        id: md5
+        run: |
+          VERSION_STRING=$(echo "${{ steps.latest.outputs.latest }}" | tr '.' '-')
+          MD5=$(curl -s https://api.github.com/repos/doktor83/SRBMiner-Multi/releases/tags/${{ steps.latest.outputs.latest }} | jq -r '.body' | grep -oP '[0-9a-f]{32}\s+\*?SRBMiner-Multi-'"${VERSION_STRING}"'-Linux\.tar\.gz' | awk '{print $1}')
+          echo "md5=$MD5" >> "$GITHUB_OUTPUT"
+          echo "MD5: $MD5"
+
+      - name: Validate MD5
+        if: steps.check.outputs.update == 'true'
+        run: |
+          MD5_VAL="${{ steps.md5.outputs.md5 }}"
+          if [ -z "$MD5_VAL" ] || [ "$MD5_VAL" = "null" ]; then
+            echo "ERROR: Could not extract MD5 hash from release body"
+            exit 1
+          fi
+          if [ "${#MD5_VAL}" -ne 32 ]; then
+            echo "ERROR: Extracted MD5 is not 32 chars (got ${#MD5_VAL}): $MD5_VAL"
+            exit 1
+          fi
+          echo "MD5 validated: $MD5_VAL"
+
+      - name: Update Dockerfile
+        if: steps.check.outputs.update == 'true'
+        run: |
+          sed -i "s/ARG VERSION_TAG=${{ steps.current.outputs.current }}/ARG VERSION_TAG=${{ steps.latest.outputs.latest }}/" Dockerfile
+          sed -i "s/ARG EXPECTED_MD5=[0-9a-f]\+/ARG EXPECTED_MD5=${{ steps.md5.outputs.md5 }}/" Dockerfile
+          echo "Dockerfile updated:"
+          grep -E 'ARG VERSION_TAG|ARG EXPECTED_MD5' Dockerfile
+
+      - name: Check for changes
+        id: git-check
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Pull Request
+        if: steps.git-check.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "bump: SRBMiner-Multi ${{ steps.latest.outputs.latest }}"
+          title: "chore: bump SRBMiner-Multi to v${{ steps.latest.outputs.latest }}"
+          body: |
+            Automated update to [SRBMiner-Multi v${{ steps.latest.outputs.latest }}](https://github.com/doktor83/SRBMiner-Multi/releases/tag/${{ steps.latest.outputs.latest }})
+
+            **Changes:**
+            - `VERSION_TAG`: ${{ steps.current.outputs.current }} → ${{ steps.latest.outputs.latest }}
+            - `EXPECTED_MD5`: updated from release
+
+            Merge this PR to trigger a new Docker build.
+          branch: "bump/srbminer-${{ steps.latest.outputs.latest }}"
+          base: main
+          delete-branch: true
