@@ -16,7 +16,7 @@ services:
       - POOL_ADDRESS=stratum+tcp://heavyhash.eu.mine.zergpool.com:5137
       - WALLET_USER=${BTC_ADDRESS}
       - WORKER_NAME=${WORKER_NAME}
-      - PASSWORD=c=BTC
+      - POOL_PASSWORD=c=BTC
       - EXTRAS=--disable-gpu --api-enable --api-port 21550
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - HSA_ENABLE_SDMA=0

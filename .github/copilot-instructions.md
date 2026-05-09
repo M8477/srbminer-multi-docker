@@ -12,7 +12,7 @@ Always reference these instructions first and fallback to search or bash command
   - Cached build time: <1 second when using existing layers
   - Uses Debian trixie-slim base image  
   - Downloads SRBMiner-Multi from GitHub releases using wget (SSL workaround included)
-  - **IMPORTANT**: Shows security warning about PASSWORD env var - this is expected and safe
+  - **IMPORTANT**: Shows security warning about POOL_PASSWORD env var - this is expected and safe
 - **Build script**: `./build.sh`
   - Builds Docker image and attempts to push to all registries
   - Build phase: ~10-14 seconds (clean), <1 second (cached)
@@ -24,13 +24,13 @@ Always reference these instructions first and fallback to search or bash command
   - Container starts mining software with default configuration
   - Shows miner parameters correctly before attempting connection
   - Exits quickly if pool connection fails (expected behavior)
-  - Use environment variables to customize: ALGO, POOL_ADDRESS, WALLET_USER, PASSWORD, EXTRAS
+  - Use environment variables to customize: ALGO, POOL_ADDRESS, WALLET_USER, POOL_PASSWORD, EXTRAS
 - **Test different algorithms**: `docker run --rm -e ALGO=cpupower -e POOL_ADDRESS=test.pool.com:4444 test-image`
 - **API testing**: Container exposes port 80 for SRBMiner API when --api-enable flag is used
   - Start with port mapping: `docker run -d -p 8080:80 test-image`
   - API endpoints depend on SRBMiner-Multi version and configuration
   - Connection may reset if miner exits quickly (expected when no pool connection)
-- **Environment variable validation**: `docker run --rm --entrypoint=/bin/bash test-image -c "env | grep -E '(ALGO|POOL|WALLET|PASSWORD)'"`
+- **Environment variable validation**: `docker run --rm --entrypoint=/bin/bash test-image -c "env | grep -E '(ALGO|POOL|WALLET|POOL_PASSWORD)'"`
   - Verify that custom environment variables override defaults correctly
 
 ### Build Process Validation
@@ -54,7 +54,7 @@ Always validate these scenarios after making changes:
 - `ALGO`: Mining algorithm (default: "randomx")
 - `POOL_ADDRESS`: Mining pool URL (default: "stratum+ssl://rx.unmineable.com:443") 
 - `WALLET_USER`: Wallet address for mining (default: "LNec6RpZxX6Q1EJYkKjUPBTohM7Ux6uMUy")
-- `PASSWORD`: Pool password (default: "x")
+- `POOL_PASSWORD`: Pool password (default: "x")
 - `EXTRAS`: Additional SRBMiner flags (default: "--api-enable --api-port 80 --disable-auto-affinity --disable-gpu")
 
 **Note**: Environment variables can be overridden at runtime with `-e` flags
@@ -62,7 +62,7 @@ Always validate these scenarios after making changes:
 ## Known Issues and Workarounds
 
 ### Docker Build Warning
-The Dockerfile produces a security warning about ENV "PASSWORD" - this is expected and safe for this mining application.
+The Dockerfile produces a security warning about ENV "POOL_PASSWORD" - this is expected and safe for this mining application.
 
 ### SSL Certificate Issue
 The Dockerfile uses `wget --no-check-certificate` to download SRBMiner-Multi releases due to SSL certificate chain issues in some environments. This is a known limitation.
@@ -139,7 +139,7 @@ docker run -d -p 8080:80 --name miner srbminer-multi
 - If container exits immediately: Check pool connectivity or use test pool
 - If push fails: Verify registry authentication (expected to fail in development)
 - If GitHub Actions fail: Check if VERSION_TAG in build.sh matches available releases
-- If Docker build shows PASSWORD warning: This is expected and safe - ignore the warning
+- If Docker build shows POOL_PASSWORD warning: This is expected and safe - ignore the warning
 - If environment variables not working: Use `docker run --rm --entrypoint=/bin/bash image -c "env | grep VAR_NAME"` to debug
 
 ## Development Workflow

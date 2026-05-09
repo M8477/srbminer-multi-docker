@@ -5,7 +5,7 @@ ALGO=${ALGO:-"kheavyhash"}
 POOL_ADDRESS=${POOL_ADDRESS:-"stratum+tcp://heavyhash.eu.mine.zergpool.com:5137"}
 WALLET_USER=${WALLET_USER:-""}
 WORKER_NAME=${WORKER_NAME:-""}
-PASSWORD=${PASSWORD:-"c=BTC"}
+POOL_PASSWORD=${POOL_PASSWORD:-"c=BTC"}
 EXTRAS=${EXTRAS:-"--disable-gpu --api-enable --api-port 21550"}
 LOG_LEVEL=${LOG_LEVEL:-"info"}
 
@@ -24,7 +24,7 @@ log_debug "Detected binary version: ${MINER_VERSION:-unknown}"
 
 log_debug "Resolved ALGO=$ALGO"
 log_debug "Resolved POOL_ADDRESS=$POOL_ADDRESS"
-log_debug "Resolved PASSWORD=$PASSWORD"
+log_debug "Resolved POOL_PASSWORD=$POOL_PASSWORD"
 log_debug "Resolved EXTRAS=$EXTRAS"
 log_debug "Resolved LOG_LEVEL=$LOG_LEVEL"
 
@@ -38,7 +38,7 @@ log_info "  Starting SRBMiner-MULTI v${MINER_VERSION:-Unknown}"
 log_info "  Algorithm:  $ALGO"
 log_info "  Pool:       $POOL_ADDRESS"
 log_info "  Wallet:     $WALLET_USER"
-log_info "  Password:   $PASSWORD"
+log_info "  Password:   $POOL_PASSWORD"
 log_info "  Extras:     $EXTRAS"
 log_info "  GPU mode:   $($GPU_ENABLED && echo "enabled" || echo "disabled")"
 log_info "  Log level:  $LOG_LEVEL"
@@ -50,7 +50,7 @@ else
 fi
 log_info "----------------------------------------"
 
-./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$PASSWORD" $WORKER_FLAG $EXTRAS
+./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $WORKER_FLAG $EXTRAS
 EXIT_CODE=$?
 
 if [[ $EXIT_CODE -ne 0 ]] && $GPU_ENABLED; then
@@ -59,7 +59,7 @@ if [[ $EXIT_CODE -ne 0 ]] && $GPU_ENABLED; then
     log_info "  Retrying SRBMiner-MULTI v${MINER_VERSION:-Unknown}"
     log_info "  GPU mode:   disabled (failover)"
     log_info "----------------------------------------"
-    exec ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$PASSWORD" $WORKER_FLAG $EXTRAS --disable-gpu
+    exec ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $WORKER_FLAG $EXTRAS --disable-gpu
 fi
 
 exit $EXIT_CODE
