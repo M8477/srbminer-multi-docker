@@ -7,11 +7,16 @@ WALLET_USER=${WALLET_USER:-""}
 PASSWORD=${PASSWORD:-"c=BTC"}
 EXTRAS=${EXTRAS:-"--disable-gpu --api-enable --api-port 21550"}
 
-echo "Starting SRBMiner-MULTI v2.9.8..."
+# Dynamically get the exact version of the miner binary
+MINER_VERSION=$(./SRBMiner-MULTI --version | grep -oP 'SRBMiner-MULTI \K[0-9\.]+')
+
+echo "----------------------------------------"
+echo "Starting SRBMiner-MULTI v${MINER_VERSION:-Unknown}"
 echo "Algorithm: $ALGO"
-echo "Pool: $POOL_ADDRESS"
-echo "Wallet: $WALLET_USER"
-echo "Password: $PASSWORD"
-echo "Extras: $EXTRAS"
+echo "Pool:      $POOL_ADDRESS"
+echo "Wallet:    $WALLET_USER"
+echo "Password:  $PASSWORD"
+echo "Extras:    $EXTRAS"
+echo "----------------------------------------"
 
 ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$PASSWORD" $EXTRAS
