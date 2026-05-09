@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   srbminer:
     image: ghcr.io/m8477/srbminer-multi-docker:latest
@@ -27,7 +25,7 @@ services:
       - "21550:21550"
 
   solar-controller:
-    build: ./solar-controller
+    image: ghcr.io/m8477/solar-controller:latest
     container_name: solar-controller
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -40,16 +38,14 @@ services:
       - BATTERY_MIN=${BATTERY_MIN:-90}
       - SOLAR_MIN=${SOLAR_MIN:-800}
       - CHECK_SECS=${CHECK_SECS:-120}
-    command: python -u /controller.py
     restart: unless-stopped
 
   kraken-sell-bot:
-    build: ./kraken-sell-bot
+    image: ghcr.io/m8477/kraken-sell-bot:latest
     container_name: kraken-sell-bot
     environment:
       - PYTHONUNBUFFERED=1
       - KRAKEN_KEY=${KRAKEN_KEY}
       - KRAKEN_SECRET=${KRAKEN_SECRET}
       - MIN_BTC_SELL=${MIN_BTC_SELL:-0.0005}
-    command: python -u /sell_bot.py
     restart: unless-stopped

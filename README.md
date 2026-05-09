@@ -9,10 +9,10 @@ High-performance CPU & AMD GPU miner paired with a Home Assistant solar controll
 | Service | Image | Role |
 |---------|-------|------|
 | `srbminer` | `ghcr.io/m8477/srbminer-multi-docker:latest` | CPU/GPU miner (kheavyhash → BTC) |
-| `solar-controller` | `python:3.12-slim` | Queries Home Assistant; starts/stops miner based on battery % and solar W |
-| `kraken-sell-bot` | `python:3.12-slim` | Monitors Kraken BTC balance; auto-sells when above threshold |
+| `solar-controller` | `ghcr.io/m8477/solar-controller:latest` | Queries Home Assistant; starts/stops miner based on battery % and solar W |
+| `kraken-sell-bot` | `ghcr.io/m8477/kraken-sell-bot:latest` | Monitors Kraken BTC balance; auto-sells when above threshold |
 
-[Browse packages](https://github.com/M8477/srbminer-multi-docker/pkgs/container/srbminer-multi-docker)
+[Browse packages](https://github.com/M8477?tab=packages&repo_name=srbminer-multi-docker)
 
 ## Quick Start
 
@@ -108,6 +108,17 @@ A [scheduled GitHub Action](.github/workflows/version-check.yml) checks daily fo
 +ARG VERSION_TAG=2.9.9
 +ARG EXPECTED_MD5=<md5 from release notes>
 ```
+
+## Portainer Deployment
+
+The stack is designed for Portainer with all images pre-built on GHCR — no `build:` directives, no local file mounts needed (except `docker.sock` for the controller).
+
+1. **Add a stack** in Portainer
+2. **Paste** the contents of `docker-compose.yml`
+3. Add your [environment variables](#environment-variables) under **Environment variables** or create a `.env` file
+4. **Deploy the stack**
+
+> The `HSA_ENABLE_SDMA`, `ROCR_VISIBLE_DEVICES`, and `HIP_VISIBLE_DEVICES` vars are only needed for AMD GPU mining. Remove them for CPU-only setups.
 
 ## Local Build
 

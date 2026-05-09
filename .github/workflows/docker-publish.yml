@@ -16,18 +16,34 @@ jobs:
       contents: read
       packages: write
 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: srbminer-multi-docker
+            context: .
+            dockerfile: Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - image: solar-controller
+            context: ./solar-controller
+            dockerfile: ./solar-controller/Dockerfile
+            platforms: linux/amd64
+          - image: kraken-sell-bot
+            context: ./kraken-sell-bot
+            dockerfile: ./kraken-sell-bot/Dockerfile
+            platforms: linux/amd64
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Extract version and MD5 from Dockerfile
-        id: version
+      - name: Extract SRBMiner version from Dockerfile
+        id: srbversion
         run: |
-          VERSION=$(grep -oP 'ARG VERSION_TAG=\K[0-9.]+' Dockerfile)
-          MD5=$(grep -oP 'ARG EXPECTED_MD5=\K[0-9a-f]+' Dockerfile)
+          VERSION=$(grep -oP 'ARG VERSION_TAG=\K[0-9.]+' Dockerfile || echo '')
+          MD5=$(grep -oP 'ARG EXPECTED_MD5=\K[0-9a-f]+' Dockerfile || echo '')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "md5=$MD5" >> "$GITHUB_OUTPUT"
-          echo "Version: $VERSION  MD5: $MD5"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -42,16 +58,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Docker meta for ${{ matrix.image }}
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=
+            ${{ matrix.image == 'srbminer-multi-docker' && format('type=raw,value={0}', steps.srbversion.outputs.version) || '' }}
+
+      - name: Build and push ${{ matrix.image }}
         uses: docker/build-push-action@v6
         with:
-          context: .
-          platforms: linux/amd64,linux/arm64
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platforms }}
           push: true
           build-args: |
-            VERSION_TAG=${{ steps.version.outputs.version }}
-            EXPECTED_MD5=${{ steps.version.outputs.md5 }}
-          tags: |
-            ghcr.io/m8477/srbminer-multi-docker:latest
-            ghcr.io/m8477/srbminer-multi-docker:${{ steps.version.outputs.version }}
-            ghcr.io/m8477/srbminer-multi-docker:${{ github.sha }}
+            VERSION_TAG=${{ steps.srbversion.outputs.version }}
+            EXPECTED_MD5=${{ steps.srbversion.outputs.md5 }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
