@@ -113,7 +113,7 @@ A [scheduled GitHub Action](.github/workflows/version-check.yml) checks daily fo
 Build the miner image locally:
 
 ```bash
-docker build --build-arg VERSION_TAG=2.9.8 -t srbminer-multi:local .
+docker build --build-arg VERSION_TAG=3.2.8 -t srbminer-multi:local .
 docker run -e WALLET_USER="your_wallet" srbminer-multi:local
 ```
 
