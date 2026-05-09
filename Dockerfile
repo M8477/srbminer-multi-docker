@@ -25,6 +25,7 @@ RUN apt-get -y update \
     && rm -rf SRBMiner.tar.gz \
     && mv /opt/SRBMiner-Multi-${VERSION_STRING}/ /opt/SRBMiner-Multi/ \
     && groupadd -r srbminer && useradd -r -g srbminer -d /opt/SRBMiner-Multi -s /bin/bash srbminer \
+    && groupadd -fr video && groupadd -fr render \
     && usermod -aG video,render srbminer \
     && apt-get -y autoremove --purge \
     && apt-get -y clean \
