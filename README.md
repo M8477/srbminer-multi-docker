@@ -1,76 +1,79 @@
-# srbminer-multi-docker
+# SRBMiner-Multi Docker
 
-High performance, open source CPU & AMD GPU Miner Docker Image.
-Mine up to 4 different algorithms/coins at the same time!
+High-performance CPU & AMD GPU miner in a clean Docker image. Downloads the latest SRBMiner-Multi binary directly from [doktor83/SRBMiner-Multi](https://github.com/doktor83/SRBMiner-Multi) at build time — no stale third-party images.
 
-[![Snyk Container](https://github.com/cniweb/srbminer-multi-docker/actions/workflows/snyk-container.yml/badge.svg)](https://github.com/cniweb/srbminer-multi-docker/actions/workflows/snyk-container.yml) [![Docker Image CI](https://github.com/cniweb/srbminer-multi-docker/actions/workflows/docker-image.yml/badge.svg)](https://github.com/cniweb/srbminer-multi-docker/actions/workflows/docker-image.yml) ![Docker Pulls](https://img.shields.io/docker/pulls/cniweb/srbminer-multi)
+[![Docker Publish](https://github.com/M8477/srbminer-multi-docker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/M8477/srbminer-multi-docker/actions/workflows/docker-publish.yml)
 
-## Usage from ghcr.io
+## Image
 
-```bash
-docker run ghcr.io/cniweb/srbminer-multi:latest
+```
+ghcr.io/m8477/srbminer-multi-docker:latest
 ```
 
-<https://github.com/cniweb/srbminer-multi-docker/pkgs/container/srbminer-multi>
+[Browse packages](https://github.com/M8477/srbminer-multi-docker/pkgs/container/srbminer-multi-docker)
 
-## Usage from Docker.io
+## Quick Start
 
 ```bash
-docker run docker.io/cniweb/srbminer-multi:latest
+docker run \
+  -e WALLET_USER="1Fyq3JegvpKDrfcEgyxJdQGfgZZjhDJ18P" \
+  ghcr.io/m8477/srbminer-multi-docker:latest
 ```
 
-## Usage from Quay.io
+## Environment Variables
 
-```bash
-docker run quay.io/cniweb/srbminer-multi:latest
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WALLET_USER` | *(required)* | Your wallet address |
+| `ALGO` | `kheavyhash` | Mining algorithm |
+| `POOL_ADDRESS` | `stratum+tcp://heavyhash.eu.mine.zergpool.com:5137` | Pool URL |
+| `PASSWORD` | `c=BTC` | Pool password / payout currency |
+| `EXTRAS` | `--disable-gpu --api-enable --api-port 21550` | Extra flags passed to the miner |
+| `LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error` \| `quiet` |
+
+### Log Levels
+
+| Level | Output |
+|-------|--------|
+| `debug` | Timestamps, all resolved vars, version detection, full startup banner |
+| `info` | Timestamped startup banner with config summary |
+| `warn` | Warnings only (e.g. unknown version) if applicable |
+| `error` | Only on failure (e.g. missing wallet) |
+| `quiet` | No wrapper output — raw miner output only |
+
+Miner output always passes through regardless of `LOG_LEVEL`.
+
+## docker-compose
+
+```yaml
+version: "3.8"
+services:
+  srbminer:
+    image: ghcr.io/m8477/srbminer-multi-docker:latest
+    environment:
+      - WALLET_USER=1Fyq3JegvpKDrfcEgyxJdQGfgZZjhDJ18P
+      - ALGO=kheavyhash
+      - POOL_ADDRESS=stratum+tcp://heavyhash.eu.mine.zergpool.com:5137
+      - PASSWORD=c=BTC
+      - LOG_LEVEL=info
+    ports:
+      - "21550:21550"
+    restart: unless-stopped
 ```
 
-## Development and CI/CD
-
-### GitHub Secrets Configuration
-
-To enable automated Docker image building and pushing to multiple registries, configure the following GitHub Secrets in your repository settings:
-
-#### Required Secrets for Registry Access:
-
-1. **Docker Hub (docker.io)**:
-   - `DOCKER_USERNAME`: Your Docker Hub username
-   - `DOCKER_PASSWORD`: Your Docker Hub password or access token
-
-2. **GitHub Container Registry (ghcr.io)**:
-   - `GITHUB_TOKEN`: Automatically provided by GitHub Actions with `packages: write` permission configured in the workflow
-   - No manual secret configuration needed - the workflow automatically grants the necessary permissions
-
-3. **Quay.io**:
-   - `QUAY_USERNAME`: Your Quay.io username
-   - `QUAY_PASSWORD`: Your Quay.io password or robot token
-
-#### How to Configure Secrets:
-
-1. Go to your repository on GitHub
-2. Click on **Settings** → **Secrets and variables** → **Actions**
-3. Click **New repository secret**
-4. Add each secret with the exact name shown above
-
-**Note**: For GitHub Container Registry, the `GITHUB_TOKEN` is automatically provided by GitHub Actions and configured with the necessary `packages: write` permission in the workflow file. No manual configuration is required.
-
-#### Registry Behavior:
-
-- The build script will automatically detect which registry credentials are available
-- If credentials for a registry are missing, that registry will be skipped
-- At least one registry must be configured for the build to proceed
-- The build will fail if no valid registry credentials are provided
-
-#### Manual Building:
-
-You can also run the build script locally by setting the appropriate environment variables:
+## Local Build
 
 ```bash
-export DOCKER_USERNAME="your_username"
-export DOCKER_PASSWORD="your_password"
-export GITHUB_TOKEN="your_github_token"
-export QUAY_USERNAME="your_quay_username"
-export QUAY_PASSWORD="your_quay_password"
+docker build --build-arg VERSION_TAG=2.9.8 -t srbminer-multi:local .
+docker run -e WALLET_USER="your_wallet" srbminer-multi:local
+```
 
+Or use the helper script:
+
+```bash
 ./build.sh
 ```
+
+## License
+
+MIT — see [LICENSE](./LICENSE)
