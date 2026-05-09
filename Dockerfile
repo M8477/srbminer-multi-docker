@@ -1,23 +1,25 @@
 FROM debian:trixie-slim
 
-ARG VERSION_TAG=3.0.2
-ENV ALGO="randomx"
-ENV POOL_ADDRESS="stratum+ssl://rx.unmineable.com:443"
-ENV WALLET_USER="ltc1q6c4vres6a390mtm4updr5jc6thyv22pu0dupq8"
-# Note: Default password is set to "x" - override at runtime for production use
-ENV PASSWORD="x"
-ENV EXTRAS="--api-enable --api-port 80 --disable-auto-affinity --disable-gpu"
+# Set the newest miner version (you can change this in the future)
+ARG VERSION_TAG=2.9.8
 
+# Set clean default environment variables
+ENV ALGO="kheavyhash"
+ENV POOL_ADDRESS="stratum+tcp://heavyhash.eu.mine.zergpool.com:5137"
+ENV WALLET_USER="1Fyq3JegvpKDrfcEgyxJdQGfgZZjhDJ18P"
+ENV PASSWORD="c=BTC"
+ENV EXTRAS="--disable-gpu --api-enable --api-port 21550"
+
+# Install dependencies, download, and extract SRBMiner
 RUN apt-get -y update \
     && apt-get -y upgrade \
-    && apt-get -y install curl wget ca-certificates \
+    && apt-get -y install curl wget ca-certificates xz-utils tar \
     && update-ca-certificates \
     && cd /opt \
     && VERSION_STRING=$(echo "$VERSION_TAG" | tr '.' '-') \
-    && (curl -L https://github.com/doktor83/SRBMiner-Multi/releases/download/${VERSION_TAG}/SRBMiner-Multi-${VERSION_STRING}-Linux.tar.gz -o SRBMiner-Multi.tar.gz || \
-        wget --progress=dot:giga --no-check-certificate https://github.com/doktor83/SRBMiner-Multi/releases/download/${VERSION_TAG}/SRBMiner-Multi-${VERSION_STRING}-Linux.tar.gz -O SRBMiner-Multi.tar.gz) \
-    && tar xf SRBMiner-Multi.tar.gz \
-    && rm -rf SRBMiner-Multi.tar.gz \
+    && wget -q https://github.com/doktor83/SRBMiner-Multi/releases/download/${VERSION_TAG}/SRBMiner-Multi-${VERSION_STRING}-Linux.tar.xz -O SRBMiner.tar.xz \
+    && tar xf SRBMiner.tar.xz \
+    && rm -rf SRBMiner.tar.xz \
     && mv /opt/SRBMiner-Multi-${VERSION_STRING}/ /opt/SRBMiner-Multi/ \
     && groupadd -r srbminer && useradd -r -g srbminer -d /opt/SRBMiner-Multi -s /bin/bash srbminer \
     && chown -R srbminer:srbminer /opt/SRBMiner-Multi \
@@ -27,13 +29,11 @@ RUN apt-get -y update \
 
 WORKDIR /opt/SRBMiner-Multi/
 COPY start_zergpool.sh .
-
 RUN chmod +x start_zergpool.sh
 
 # Switch to non-root user for security
 USER srbminer
 
-EXPOSE 80
+EXPOSE 21550
 
 ENTRYPOINT ["./start_zergpool.sh"]
-CMD ["--api-enable", "--api-port", "80", "--disable-auto-affinity", "--disable-gpu"]
