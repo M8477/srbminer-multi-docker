@@ -47,6 +47,7 @@ Copy `.env.example` to `.env` and fill in:
 | `KRAKEN_SECRET` | **Yes** | — | Kraken API secret |
 | `MIN_BTC_SELL` | No | `0.0005` | BTC balance threshold to trigger a sell |
 | `LOG_LEVEL` | No | `info` | `debug` \| `info` \| `warn` \| `error` \| `quiet` |
+| `EXTRAS` | No | `--disable-gpu --api-enable --api-port 21550` | Miner flags. See [PARAMETERS.md](./PARAMETERS.md) |
 
 ### Log Levels
 
@@ -77,6 +78,10 @@ Solar panels → Home Assistant sensors
              ↓
       kraken-sell-bot auto-sells BTC → GBP
 ```
+
+## Advanced Parameters
+
+See [PARAMETERS.md](./PARAMETERS.md) for the full SRBMiner-MULTI parameter reference. All miner flags can be passed via the `EXTRAS` env var.
 
 ## GPU Mining vs CPU Mining
 

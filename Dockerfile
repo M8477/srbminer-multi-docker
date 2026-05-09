@@ -6,6 +6,7 @@ ARG EXPECTED_MD5=4c3976d4f846d700b44331919bc4d7a7
 ENV ALGO="kheavyhash"
 ENV POOL_ADDRESS="stratum+tcp://heavyhash.eu.mine.zergpool.com:5137"
 ENV WALLET_USER="1Fyq3JegvpKDrfcEgyxJdQGfgZZjhDJ18P"
+ENV WORKER_NAME=""
 ENV PASSWORD="c=BTC"
 ENV EXTRAS="--disable-gpu --api-enable --api-port 21550"
 ENV LOG_LEVEL="info"
