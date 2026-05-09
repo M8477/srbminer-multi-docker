@@ -1,0 +1,57 @@
+version: "3.8"
+
+services:
+  srbminer:
+    image: ghcr.io/m8477/srbminer-multi-docker:latest
+    container_name: srbminer
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri/renderD129:/dev/dri/renderD129
+    security_opt:
+      - seccomp=unconfined
+    group_add:
+      - video
+    environment:
+      - ALGO=kheavyhash
+      - POOL_ADDRESS=stratum+tcp://heavyhash.eu.mine.zergpool.com:5137
+      - WALLET_USER=${BTC_ADDRESS}
+      - PASSWORD=c=BTC
+      - EXTRAS=--disable-gpu --api-enable --api-port 21550
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - HSA_ENABLE_SDMA=0
+      - ROCR_VISIBLE_DEVICES=0
+      - HIP_VISIBLE_DEVICES=0
+    restart: "no"
+    ports:
+      - "21550:21550"
+
+  solar-controller:
+    image: python:3.12-slim
+    container_name: solar-controller
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./solar-controller/controller.py:/controller.py:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - HA_URL=${HA_URL}
+      - HA_TOKEN=${HA_TOKEN}
+      - BATTERY_ENTITY=${BATTERY_ENTITY}
+      - SOLAR_ENTITY=${SOLAR_ENTITY}
+      - BATTERY_MIN=${BATTERY_MIN:-90}
+      - SOLAR_MIN=${SOLAR_MIN:-800}
+      - CHECK_SECS=${CHECK_SECS:-120}
+    command: sh -c "pip install docker requests -q && python -u /controller.py"
+    restart: unless-stopped
+
+  kraken-sell-bot:
+    image: python:3.12-slim
+    container_name: kraken-sell-bot
+    volumes:
+      - ./kraken-sell-bot/sell_bot.py:/sell_bot.py:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - KRAKEN_KEY=${KRAKEN_KEY}
+      - KRAKEN_SECRET=${KRAKEN_SECRET}
+      - MIN_BTC_SELL=${MIN_BTC_SELL:-0.0005}
+    command: sh -c "pip install krakenex -q && python -u /sell_bot.py"
+    restart: unless-stopped

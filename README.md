@@ -1,35 +1,52 @@
-# SRBMiner-Multi Docker
+# SRBMiner-Multi Docker — Solar Mining Stack
 
-High-performance CPU & AMD GPU miner in a clean Docker image. Downloads the latest SRBMiner-Multi binary directly from [doktor83/SRBMiner-Multi](https://github.com/doktor83/SRBMiner-Multi) at build time — no stale third-party images.
+High-performance CPU & AMD GPU miner paired with a Home Assistant solar controller and Kraken auto-sell bot. Mines only when your solar panels produce excess power and your battery is full. Sells the earned BTC automatically on Kraken.
 
 [![Docker Publish](https://github.com/M8477/srbminer-multi-docker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/M8477/srbminer-multi-docker/actions/workflows/docker-publish.yml)
 
-## Image
+## Stack Overview
 
-```
-ghcr.io/m8477/srbminer-multi-docker:latest
-```
+| Service | Image | Role |
+|---------|-------|------|
+| `srbminer` | `ghcr.io/m8477/srbminer-multi-docker:latest` | CPU/GPU miner (kheavyhash → BTC) |
+| `solar-controller` | `python:3.12-slim` | Queries Home Assistant; starts/stops miner based on battery % and solar W |
+| `kraken-sell-bot` | `python:3.12-slim` | Monitors Kraken BTC balance; auto-sells when above threshold |
 
 [Browse packages](https://github.com/M8477/srbminer-multi-docker/pkgs/container/srbminer-multi-docker)
 
 ## Quick Start
 
 ```bash
-docker run \
-  -e WALLET_USER="1Fyq3JegvpKDrfcEgyxJdQGfgZZjhDJ18P" \
-  ghcr.io/m8477/srbminer-multi-docker:latest
+cp .env.example .env
+# Edit .env with your BTC address, HA details, and Kraken API keys
+docker compose up -d
 ```
+
+## Prerequisites
+
+- **AMD GPU mining:** ROCm kernel driver installed on host. The `video` group in the container must match the host's GID (usually `44` but verify with `getent group video`).
+- **Home Assistant** accessible from the Docker host for solar/battery sensors.
+- **Kraken API keys** with trading permissions to auto-sell.
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WALLET_USER` | *(required)* | Your wallet address |
-| `ALGO` | `kheavyhash` | Mining algorithm |
-| `POOL_ADDRESS` | `stratum+tcp://heavyhash.eu.mine.zergpool.com:5137` | Pool URL |
-| `PASSWORD` | `c=BTC` | Pool password / payout currency |
-| `EXTRAS` | `--disable-gpu --api-enable --api-port 21550` | Extra flags passed to the miner |
-| `LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error` \| `quiet` |
+Copy `.env.example` to `.env` and fill in:
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `BTC_ADDRESS` | **Yes** | — | Your BTC wallet for mining payouts |
+| `WORKER_NAME` | No | — | Optional miner worker name |
+| `HA_URL` | **Yes** | `http://homeassistant.local:8123` | Home Assistant URL |
+| `HA_TOKEN` | **Yes** | — | Long-lived access token from HA |
+| `BATTERY_ENTITY` | No | `sensor.my_home_percentage_charged` | HA entity for battery % |
+| `SOLAR_ENTITY` | No | `sensor.my_home_solar_power` | HA entity for solar power (W) |
+| `BATTERY_MIN` | No | `90` | Battery % required before mining starts |
+| `SOLAR_MIN` | No | `800` | Solar watts required before mining starts |
+| `CHECK_SECS` | No | `120` | How often the controller polls HA |
+| `KRAKEN_KEY` | **Yes** | — | Kraken API key |
+| `KRAKEN_SECRET` | **Yes** | — | Kraken API secret |
+| `MIN_BTC_SELL` | No | `0.0005` | BTC balance threshold to trigger a sell |
+| `LOG_LEVEL` | No | `info` | `debug` \| `info` \| `warn` \| `error` \| `quiet` |
 
 ### Log Levels
 
@@ -37,31 +54,46 @@ docker run \
 |-------|--------|
 | `debug` | Timestamps, all resolved vars, version detection, full startup banner |
 | `info` | Timestamped startup banner with config summary |
-| `warn` | Warnings only (e.g. unknown version) if applicable |
-| `error` | Only on failure (e.g. missing wallet) |
+| `warn` | Warnings only |
+| `error` | Only on failure |
 | `quiet` | No wrapper output — raw miner output only |
 
 Miner output always passes through regardless of `LOG_LEVEL`.
 
-## docker-compose
+## How It Works
 
-```yaml
-version: "3.8"
-services:
-  srbminer:
-    image: ghcr.io/m8477/srbminer-multi-docker:latest
-    environment:
-      - WALLET_USER=1Fyq3JegvpKDrfcEgyxJdQGfgZZjhDJ18P
-      - ALGO=kheavyhash
-      - POOL_ADDRESS=stratum+tcp://heavyhash.eu.mine.zergpool.com:5137
-      - PASSWORD=c=BTC
-      - LOG_LEVEL=info
-    ports:
-      - "21550:21550"
-    restart: unless-stopped
+```
+Solar panels → Home Assistant sensors
+                        ↓
+               solar-controller (poll every CHECK_SECS)
+                        ↓
+          battery ≥ 90% AND solar ≥ 800W ?
+             ↓ YES                   ↓ NO
+        start srbminer          stop srbminer
+             ↓
+        mine kheavyhash → zergpool (BTC)
+             ↓
+    BTC paid to your wallet → Kraken
+             ↓
+      kraken-sell-bot auto-sells BTC → GBP
+```
+
+## GPU Mining vs CPU Mining
+
+**CPU mining (default):** `EXTRAS` includes `--disable-gpu`. Works everywhere.
+
+**GPU mining:** Remove `--disable-gpu` from `EXTRAS`. Requires:
+- ROCm kernel driver on host
+- Matching `renderD*` device path (check with `ls /dev/dri/renderD*`)
+
+```diff
+- EXTRAS=--disable-gpu --api-enable --api-port 21550
++ EXTRAS=--api-enable --api-port 21550
 ```
 
 ## Local Build
+
+Build the miner image locally:
 
 ```bash
 docker build --build-arg VERSION_TAG=2.9.8 -t srbminer-multi:local .
@@ -72,6 +104,16 @@ Or use the helper script:
 
 ```bash
 ./build.sh
+```
+
+## Standalone Miner Usage
+
+Run just the miner without the solar stack:
+
+```bash
+docker run \
+  -e WALLET_USER="1Fyq3JegvpKDrfcEgyxJdQGfgZZjhDJ18P" \
+  ghcr.io/m8477/srbminer-multi-docker:latest
 ```
 
 ## License
