@@ -27,6 +27,7 @@ services:
   solar-controller:
     image: ghcr.io/m8477/solar-controller:latest
     container_name: solar-controller
+    network_mode: host
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
@@ -38,6 +39,8 @@ services:
       - BATTERY_MIN=${BATTERY_MIN:-90}
       - SOLAR_MIN=${SOLAR_MIN:-800}
       - CHECK_SECS=${CHECK_SECS:-120}
+      - FORCE_MINE=${FORCE_MINE:-}
+      - FORCE_MINE_MINS=${FORCE_MINE_MINS:-30}
     restart: unless-stopped
 
   kraken-sell-bot:
