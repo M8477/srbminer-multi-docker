@@ -41,6 +41,7 @@ services:
       - CHECK_SECS=${CHECK_SECS:-120}
       - FORCE_MINE=${FORCE_MINE:-}
       - FORCE_MINE_MINS=${FORCE_MINE_MINS:-30}
+      - HEARTBEAT_SECS=${HEARTBEAT_SECS:-60}
     restart: unless-stopped
 
   kraken-sell-bot:

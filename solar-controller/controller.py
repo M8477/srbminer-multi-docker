@@ -1,4 +1,4 @@
-import os, time, docker, requests
+import os, sys, time, docker, requests
 
 HA_URL         = os.environ["HA_URL"]
 HA_TOKEN       = os.environ["HA_TOKEN"]
@@ -10,20 +10,39 @@ CHECK_SECS     = int(os.environ.get("CHECK_SECS",    120))
 MINER_NAME     = "srbminer"
 FORCE_MINE     = os.environ.get("FORCE_MINE", "").upper() in ("Y", "YES", "TRUE", "1")
 FORCE_MINS     = int(os.environ.get("FORCE_MINE_MINS", 30))
+HEARTBEAT_SECS = int(os.environ.get("HEARTBEAT_SECS", 60))
 
-HEADERS = {"Authorization": f"Bearer {HA_TOKEN}"}
+sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, "reconfigure") else None
+
+def log(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
 def ha_state(entity_id):
-    r = requests.get(f"{HA_URL}/api/states/{entity_id}", headers=HEADERS, timeout=10)
+    r = requests.get(f"{HA_URL}/api/states/{entity_id}", headers={"Authorization": f"Bearer {HA_TOKEN}"}, timeout=10)
     r.raise_for_status()
     return float(r.json()["state"])
 
 client = docker.from_env()
-force_start_time = None
+
+log("=" * 56)
+log("  SOLAR MINING CONTROLLER — STARTUP")
+log("=" * 56)
+log(f"  HA URL:         {HA_URL}")
+log(f"  Battery entity: {BATTERY_ENTITY}")
+log(f"  Solar entity:   {SOLAR_ENTITY}")
+log(f"  Battery min:    {BATTERY_MIN}%")
+log(f"  Solar min:      {SOLAR_MIN}W")
+log(f"  Poll interval:  {CHECK_SECS}s")
+log(f"  Heartbeat:      {HEARTBEAT_SECS}s")
+log(f"  Miner name:     {MINER_NAME}")
+log(f"  Force mine:     {FORCE_MINE}")
 if FORCE_MINE:
-    print(f"FORCE_MINE enabled — ignoring solar/battery rules for {FORCE_MINS} minutes")
-    force_start_time = time.time()
-print(f"Controller started. Battery min: {BATTERY_MIN}% | Solar min: {SOLAR_MIN}W")
+    log(f"  Force duration: {FORCE_MINS} min")
+log("=" * 56)
+
+force_start_time = time.time() if FORCE_MINE else None
+last_heartbeat = time.time()
+miner_running = False
 
 while True:
     try:
@@ -31,29 +50,40 @@ while True:
             elapsed = (time.time() - force_start_time) / 60
             if elapsed < FORCE_MINS:
                 should_mine = True
-                remaining = FORCE_MINS - elapsed
-                print(f"Forced mining — {remaining:.0f} min remaining")
+                log(f"FORCED: mining {FORCE_MINS - elapsed:.0f}min remaining")
             else:
                 force_start_time = None
                 should_mine = False
-                print("Forced mining period ended — resuming normal control")
+                log("FORCED: period ended — resuming normal control")
         else:
             battery = ha_state(BATTERY_ENTITY)
             solar   = ha_state(SOLAR_ENTITY)
             should_mine = battery >= BATTERY_MIN and solar >= SOLAR_MIN
-            print(f"Battery: {battery:.1f}% | Solar: {solar:.0f}W | Mining: {should_mine}")
+            log(f"Battery: {battery:.1f}% | Solar: {solar:.0f}W | Should mine: {should_mine}")
+
         try:
             miner = client.containers.get(MINER_NAME)
             if should_mine and miner.status != "running":
                 miner.start()
-                print("▶  Miner STARTED")
+                miner_running = True
+                last_heartbeat = time.time()
+                log("▶  Miner STARTED")
             elif not should_mine and miner.status == "running":
                 miner.stop()
-                print("⏹  Miner STOPPED")
+                miner_running = False
+                log("⏹  Miner STOPPED")
             else:
-                print(f"   Miner already {'running ✓' if miner.status == 'running' else 'stopped ✓'}")
+                miner_running = (miner.status == "running")
+                log(f"   Miner {'running' if miner_running else 'stopped'} (no change)")
         except docker.errors.NotFound:
-            print("⚠  srbminer container not found")
+            log("⚠  srbminer container not found")
+            miner_running = False
     except Exception as e:
-        print(f"⚠  Error: {e}")
-    time.sleep(CHECK_SECS)
+        log(f"⚠  Error: {e}")
+
+    deadline = time.time() + CHECK_SECS
+    while time.time() < deadline:
+        time.sleep(min(10, deadline - time.time()))
+        if miner_running and (time.time() - last_heartbeat) >= HEARTBEAT_SECS:
+            last_heartbeat = time.time()
+            log(f"♥  Miner active — uptime: {last_heartbeat - (last_heartbeat - HEARTBEAT_SECS):.0f}s+ (heartbeat every {HEARTBEAT_SECS}s)")
