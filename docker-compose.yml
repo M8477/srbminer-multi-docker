@@ -13,7 +13,7 @@ services:
     environment:
       - ALGO=kheavyhash
       - POOL_ADDRESS=stratum+tcp://heavyhash.eu.mine.zergpool.com:5137
-      - WALLET_USER=${BTC_ADDRESS}
+      - WALLET_USER=${BTC_ADDRESS:-} 
       - WORKER_NAME=${WORKER_NAME}
       - POOL_PASSWORD=c=BTC
       - EXTRAS=--disable-gpu --api-enable --api-port 21550 --extended-log
