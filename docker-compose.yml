@@ -1,6 +1,7 @@
 services:
   srbminer:
     image: ghcr.io/m8477/srbminer-multi-docker:latest
+    pull_policy: always
     container_name: srbminer
     devices:
       - /dev/kfd:/dev/kfd
@@ -27,6 +28,7 @@ services:
 
   solar-controller:
     image: ghcr.io/m8477/solar-controller:latest
+    pull_policy: always
     container_name: solar-controller
     network_mode: host
     volumes:
@@ -48,6 +50,7 @@ services:
 
   kraken-sell-bot:
     image: ghcr.io/m8477/kraken-sell-bot:latest
+    pull_policy: always
     container_name: kraken-sell-bot
     environment:
       - PYTHONUNBUFFERED=1
