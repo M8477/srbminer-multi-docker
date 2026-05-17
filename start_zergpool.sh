@@ -9,28 +9,16 @@ POOL_PASSWORD=${POOL_PASSWORD:-"c=BTC"}
 EXTRAS=${EXTRAS:-"--disable-gpu --api-enable --api-port 21550 --extended-log"}
 LOG_LEVEL=${LOG_LEVEL:-"info"}
 
-log_debug() { [[ "$LOG_LEVEL" == "debug" ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [DEBUG] $*" | tee /dev/stderr; }
-log_info()  { [[ "$LOG_LEVEL" =~ ^(debug|info)$ ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*" | tee /dev/stderr; }
-log_warn()  { [[ "$LOG_LEVEL" =~ ^(debug|info|warn)$ ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN]  $*" | tee /dev/stderr; }
-log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" | tee /dev/stderr; }
+log_debug() { [[ "$LOG_LEVEL" == "debug" ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [DEBUG] $*"; }
+log_info()  { [[ "$LOG_LEVEL" =~ ^(debug|info)$ ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
+log_warn()  { [[ "$LOG_LEVEL" =~ ^(debug|info|warn)$ ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN]  $*"; }
+log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*"; }
 
-echo ""
-echo "===== SRBMINER ENTRYPOINT DEBUG ====="
-echo "WALLET_USER: '${WALLET_USER}' (length=${#WALLET_USER})"
-echo "ALGO:         '${ALGO}'"
-echo "POOL_ADDRESS: '${POOL_ADDRESS}'"
-echo "WORKER_NAME:  '${WORKER_NAME}'"
-echo "POOL_PASSWORD:'${POOL_PASSWORD}'"
-echo "EXTRAS:       '${EXTRAS}'"
-echo "LOG_LEVEL:    '${LOG_LEVEL}'"
-echo "DRY_RUN:      '${DRY_RUN:-false}'"
-echo "VERSION_TAG:  '${VERSION_TAG:-not set}'"
-echo "====================================="
-echo ""
+log_info "Starting SRBMiner-MULTI v${VERSION_TAG:-unknown}"
+log_debug "WALLET_USER=${WALLET_USER} ALGO=${ALGO} WORKER_NAME=${WORKER_NAME}"
 
 if [[ -z "$WALLET_USER" ]]; then
-    log_error "WALLET_USER is required but not set - check BTC_ADDRESS in Portainer stack environment"
-    log_error "Run: Stacks -> your-stack -> Environment variables -> add BTC_ADDRESS=your_wallet"
+    log_error "WALLET_USER is required but not set"
     sleep 3
     exit 1
 fi
