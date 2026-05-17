@@ -6,7 +6,7 @@ POOL_ADDRESS=${POOL_ADDRESS:-"stratum+tcp://heavyhash.eu.mine.zergpool.com:5137"
 WALLET_USER=${WALLET_USER:-""}
 WORKER_NAME=${WORKER_NAME:-""}
 POOL_PASSWORD=${POOL_PASSWORD:-"c=BTC"}
-EXTRAS=${EXTRAS:-"--disable-gpu --api-enable --api-port 21550"}
+EXTRAS=${EXTRAS:-"--disable-gpu --api-enable --api-port 21550 --extended-log"}
 LOG_LEVEL=${LOG_LEVEL:-"info"}
 
 log_debug() { [[ "$LOG_LEVEL" == "debug" ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [DEBUG] $*"; }
@@ -75,16 +75,20 @@ if [[ "${DRY_RUN,,}" == "true" ]]; then
     exit 0
 fi
 
-eval "$CMD"
-EXIT_CODE=$?
-
-if [[ $EXIT_CODE -ne 0 ]] && $GPU_ENABLED; then
-    log_error "GPU miner exited with code $EXIT_CODE — retrying CPU-only"
-    log_info "----------------------------------------"
-    log_info "  Retrying SRBMiner-MULTI v${MINER_VERSION:-Unknown}"
-    log_info "  GPU mode:   disabled (failover)"
-    log_info "----------------------------------------"
-    exec ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $WORKER_FLAG $EXTRAS --disable-gpu
+if [[ $GPU_ENABLED == true ]]; then
+    set +e
+    ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $WORKER_FLAG $EXTRAS
+    EXIT_CODE=$?
+    set -e
+    if [[ $EXIT_CODE -ne 0 ]]; then
+        log_error "GPU miner exited with code $EXIT_CODE — retrying CPU-only"
+        log_info "----------------------------------------"
+        log_info "  Retrying SRBMiner-MULTI v${MINER_VERSION:-Unknown}"
+        log_info "  GPU mode:   disabled (failover)"
+        log_info "----------------------------------------"
+        exec ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $WORKER_FLAG $EXTRAS --disable-gpu
+    fi
+    exit $EXIT_CODE
 fi
 
-exit $EXIT_CODE
+exec ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $WORKER_FLAG $EXTRAS

@@ -48,7 +48,7 @@ Copy `.env.example` to `.env` and fill in:
 | `MIN_BTC_SELL` | No | `0.0005` | BTC balance threshold to trigger a sell |
 | `LOG_LEVEL` | No | `info` | `debug` \| `info` \| `warn` \| `error` \| `quiet` |
 | `DRY_RUN` | No | `false` | Set `true` to validate config without mining |
-| `EXTRAS` | No | `--disable-gpu --api-enable --api-port 21550` | Miner flags. See [PARAMETERS.md](./PARAMETERS.md) |
+| `EXTRAS` | No | `--disable-gpu --api-enable --api-port 21550 --extended-log` | Miner flags. See [PARAMETERS.md](./PARAMETERS.md) |
 
 ### Log Levels
 

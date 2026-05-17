@@ -8,7 +8,7 @@ ENV POOL_ADDRESS="stratum+tcp://heavyhash.eu.mine.zergpool.com:5137"
 ENV WALLET_USER="1Fyq3JegvpKDrfcEgyxJdQGfgZZjhDJ18P"
 ENV WORKER_NAME=""
 ENV POOL_PASSWORD="c=BTC"
-ENV EXTRAS="--disable-gpu --api-enable --api-port 21550"
+ENV EXTRAS="--disable-gpu --api-enable --api-port 21550 --extended-log"
 ENV LOG_LEVEL="info"
 ENV DRY_RUN="false"
 ENV HSA_ENABLE_SDMA=0
