@@ -9,18 +9,34 @@ POOL_PASSWORD=${POOL_PASSWORD:-"c=BTC"}
 EXTRAS=${EXTRAS:-"--disable-gpu --api-enable --api-port 21550 --extended-log"}
 LOG_LEVEL=${LOG_LEVEL:-"info"}
 
-log_debug() { [[ "$LOG_LEVEL" == "debug" ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [DEBUG] $*"; }
-log_info()  { [[ "$LOG_LEVEL" =~ ^(debug|info)$ ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
-log_warn()  { [[ "$LOG_LEVEL" =~ ^(debug|info|warn)$ ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN]  $*" >&2; }
-log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2; }
+log_debug() { [[ "$LOG_LEVEL" == "debug" ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [DEBUG] $*" | tee /dev/stderr; }
+log_info()  { [[ "$LOG_LEVEL" =~ ^(debug|info)$ ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*" | tee /dev/stderr; }
+log_warn()  { [[ "$LOG_LEVEL" =~ ^(debug|info|warn)$ ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN]  $*" | tee /dev/stderr; }
+log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" | tee /dev/stderr; }
+
+echo ""
+echo "===== SRBMINER ENTRYPOINT DEBUG ====="
+echo "WALLET_USER: '${WALLET_USER}' (length=${#WALLET_USER})"
+echo "ALGO:         '${ALGO}'"
+echo "POOL_ADDRESS: '${POOL_ADDRESS}'"
+echo "WORKER_NAME:  '${WORKER_NAME}'"
+echo "POOL_PASSWORD:'${POOL_PASSWORD}'"
+echo "EXTRAS:       '${EXTRAS}'"
+echo "LOG_LEVEL:    '${LOG_LEVEL}'"
+echo "DRY_RUN:      '${DRY_RUN:-false}'"
+echo "VERSION_TAG:  '${VERSION_TAG:-not set}'"
+echo "====================================="
+echo ""
 
 if [[ -z "$WALLET_USER" ]]; then
-    log_error "WALLET_USER is required but not set"
+    log_error "WALLET_USER is required but not set - check BTC_ADDRESS in Portainer stack environment"
+    log_error "Run: Stacks -> your-stack -> Environment variables -> add BTC_ADDRESS=your_wallet"
+    sleep 3
     exit 1
 fi
 
 MINER_VERSION=${MINER_VERSION:-"$VERSION_TAG"}
-log_debug "Using version: ${MINER_VERSION}"
+log_info "Using version: ${MINER_VERSION:-unknown}"
 
 log_debug "Resolved ALGO=$ALGO"
 log_debug "Resolved POOL_ADDRESS=$POOL_ADDRESS"
@@ -34,7 +50,7 @@ if [[ "$EXTRAS" == *"--disable-gpu"* ]]; then
 fi
 
 log_info "----------------------------------------"
-log_info "  Starting SRBMiner-MULTI v${MINER_VERSION}"
+log_info "  Starting SRBMiner-MULTI v${MINER_VERSION:-unknown}"
 log_info "  Algorithm:  $ALGO"
 log_info "  Pool:       $POOL_ADDRESS"
 log_info "  Wallet:     $WALLET_USER"
@@ -50,8 +66,6 @@ else
 fi
 log_info "----------------------------------------"
 
-CMD="./SRBMiner-MULTI --algorithm \"$ALGO\" --pool \"$POOL_ADDRESS\" --wallet \"$WALLET_USER\" --password \"$POOL_PASSWORD\" $WORKER_FLAG $EXTRAS"
-
 if [[ "${DRY_RUN,,}" == "true" ]]; then
     log_info "  DRY RUN — validating only, not mining"
     log_info "----------------------------------------"
@@ -66,11 +80,6 @@ if [[ "${DRY_RUN,,}" == "true" ]]; then
     log_info "Algorithm: $ALGO list:"
     ./SRBMiner-MULTI --list-algorithms 2>/dev/null | grep -i "$ALGO" || log_warn "  Algorithm '$ALGO' not found in supported list"
 
-    echo ""
-    echo "Command that would run:"
-    echo "$CMD"
-    echo ""
-
     log_info "Dry run complete — all checks passed."
     exit 0
 fi
@@ -83,7 +92,7 @@ if [[ $GPU_ENABLED == true ]]; then
     if [[ $EXIT_CODE -ne 0 ]]; then
         log_error "GPU miner exited with code $EXIT_CODE — retrying CPU-only"
         log_info "----------------------------------------"
-        log_info "  Retrying SRBMiner-MULTI v${MINER_VERSION}"
+        log_info "  Retrying SRBMiner-MULTI v${MINER_VERSION:-unknown}"
         log_info "  GPU mode:   disabled (failover)"
         log_info "----------------------------------------"
         exec ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $WORKER_FLAG $EXTRAS --disable-gpu
