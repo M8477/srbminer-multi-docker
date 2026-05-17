@@ -1,4 +1,4 @@
-import os, sys, time, docker, requests
+import os, sys, time, docker, requests, json
 
 HA_URL         = os.environ["HA_URL"]
 HA_TOKEN       = os.environ["HA_TOKEN"]
@@ -11,6 +11,7 @@ MINER_NAME     = "srbminer"
 FORCE_MINE     = os.environ.get("FORCE_MINE", "").upper() in ("Y", "YES", "TRUE", "1")
 FORCE_MINS     = int(os.environ.get("FORCE_MINE_MINS", 30))
 HEARTBEAT_SECS = int(os.environ.get("HEARTBEAT_SECS", 60))
+API_PORT       = int(os.environ.get("API_PORT", 21550))
 
 sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, "reconfigure") else None
 
@@ -22,6 +23,16 @@ def ha_state(entity_id):
     r.raise_for_status()
     return float(r.json()["state"])
 
+def miner_api(container_id):
+    try:
+        r = requests.get(f"http://127.0.0.1:{API_PORT}/", timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            return data
+    except:
+        pass
+    return None
+
 client = docker.from_env()
 
 log("=" * 56)
@@ -30,17 +41,20 @@ log("=" * 56)
 log(f"  HA URL:         {HA_URL}")
 log(f"  Battery entity: {BATTERY_ENTITY}")
 log(f"  Solar entity:   {SOLAR_ENTITY}")
-log(f"  Logic:         mine when battery ≥ {BATTERY_MIN}% OR solar ≥ {SOLAR_MIN}W")
+log(f"  Logic:         mine when battery >= {BATTERY_MIN}% OR solar >= {SOLAR_MIN}W")
 log(f"  Poll interval:  {CHECK_SECS}s")
 log(f"  Heartbeat:      {HEARTBEAT_SECS}s")
 log(f"  Miner name:     {MINER_NAME}")
+log(f"  API port:       {API_PORT}")
 log(f"  Force mine:     {FORCE_MINE}")
 if FORCE_MINE:
     log(f"  Force duration: {FORCE_MINS} min")
+log(f"  API dashboard:  http://<host>:{API_PORT}/stats")
 log("=" * 56)
 
 force_start_time = time.time() if FORCE_MINE else None
 last_heartbeat = time.time()
+last_api_ok = None
 miner_running = False
 
 while True:
@@ -53,36 +67,58 @@ while True:
             else:
                 force_start_time = None
                 should_mine = False
-                log("FORCED: period ended — resuming normal control")
+                log("FORCED: period ended - resuming normal control")
         else:
             battery = ha_state(BATTERY_ENTITY)
             solar   = ha_state(SOLAR_ENTITY)
             should_mine = battery >= BATTERY_MIN or solar >= SOLAR_MIN
-            log(f"Battery: {battery:.1f}% | Solar: {solar:.0f}W | Mine: {should_mine} (battery{'≥' if battery >= BATTERY_MIN else '<'}{BATTERY_MIN}% {'OR' if should_mine else 'NOR'} solar{'≥' if solar >= SOLAR_MIN else '<'}{SOLAR_MIN}W)")
+            log(f"Battery: {battery:.1f}% | Solar: {solar:.0f}W | Mine: {should_mine} (battery{' >=' if battery >= BATTERY_MIN else ' <'}{BATTERY_MIN}% {'||' if should_mine else '&&'} solar{' >=' if solar >= SOLAR_MIN else ' <'}{SOLAR_MIN}W)")
 
         try:
             miner = client.containers.get(MINER_NAME)
-            if should_mine and miner.status != "running":
+            miner_status = miner.status
+            miner_running = (miner_status == "running")
+
+            if should_mine and miner_status != "running":
                 miner.start()
                 miner_running = True
                 last_heartbeat = time.time()
-                log("▶  Miner STARTED")
-            elif not should_mine and miner.status == "running":
+                last_api_ok = None
+                log(">>> Miner STARTED - waiting for API...")
+            elif not should_mine and miner_status == "running":
                 miner.stop()
                 miner_running = False
-                log("⏹  Miner STOPPED")
+                last_api_ok = None
+                log("<<< Miner STOPPED")
             else:
-                miner_running = (miner.status == "running")
-                log(f"   Miner {'running' if miner_running else 'stopped'} (no change)")
+                log(f"    Miner {'running' if miner_running else 'stopped'} (no change)")
+
+            if miner_running:
+                api = miner_api(MINER_NAME)
+                if api:
+                    if last_api_ok is None:
+                        log(f"    API ONLINE - v{api.get('version','?')} | {api.get('algorithm','?')}")
+                    last_api_ok = time.time()
+                    hr = api.get("hashrate", api.get("hashrate_total", 0))
+                    shares = api.get("total_shares", api.get("shares", {}).get("accepted", 0))
+                    uptime_secs = api.get("uptime", 0)
+                    uptime_str = f"{int(uptime_secs//3600)}h{int((uptime_secs%3600)//60)}m" if uptime_secs else "0m"
+                    log(f"    HR: {hr} h/s | Shares: {shares} | Uptime: {uptime_str}")
+                else:
+                    if last_api_ok is not None and time.time() - last_api_ok > 60:
+                        log(f"    API unresponsive for {int(time.time() - last_api_ok)}s")
         except docker.errors.NotFound:
-            log("⚠  srbminer container not found")
+            log("WARN: srbminer container not found - check stack deployment")
             miner_running = False
     except Exception as e:
-        log(f"⚠  Error: {e}")
+        log(f"ERR: {e}")
 
     deadline = time.time() + CHECK_SECS
     while time.time() < deadline:
         time.sleep(min(10, deadline - time.time()))
         if miner_running and (time.time() - last_heartbeat) >= HEARTBEAT_SECS:
             last_heartbeat = time.time()
-            log(f"♥  Miner active — uptime: {last_heartbeat - (last_heartbeat - HEARTBEAT_SECS):.0f}s+ (heartbeat every {HEARTBEAT_SECS}s)")
+            if last_api_ok and time.time() - last_api_ok < 120:
+                log(f"Heartbeat: API responding, miner healthy")
+            else:
+                log(f"Heartbeat: waiting for miner API (may need --api-enable in EXTRAS)")
