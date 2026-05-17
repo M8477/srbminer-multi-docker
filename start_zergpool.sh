@@ -19,8 +19,8 @@ if [[ -z "$WALLET_USER" ]]; then
     exit 1
 fi
 
-MINER_VERSION=$(./SRBMiner-MULTI --version 2>/dev/null | grep -oP 'SRBMiner-MULTI \K[0-9\.]+' || true)
-log_debug "Detected binary version: ${MINER_VERSION:-unknown}"
+MINER_VERSION=${MINER_VERSION:-"$VERSION_TAG"}
+log_debug "Using version: ${MINER_VERSION}"
 
 log_debug "Resolved ALGO=$ALGO"
 log_debug "Resolved POOL_ADDRESS=$POOL_ADDRESS"
@@ -34,7 +34,7 @@ if [[ "$EXTRAS" == *"--disable-gpu"* ]]; then
 fi
 
 log_info "----------------------------------------"
-log_info "  Starting SRBMiner-MULTI v${MINER_VERSION:-Unknown}"
+log_info "  Starting SRBMiner-MULTI v${MINER_VERSION}"
 log_info "  Algorithm:  $ALGO"
 log_info "  Pool:       $POOL_ADDRESS"
 log_info "  Wallet:     $WALLET_USER"
@@ -83,7 +83,7 @@ if [[ $GPU_ENABLED == true ]]; then
     if [[ $EXIT_CODE -ne 0 ]]; then
         log_error "GPU miner exited with code $EXIT_CODE — retrying CPU-only"
         log_info "----------------------------------------"
-        log_info "  Retrying SRBMiner-MULTI v${MINER_VERSION:-Unknown}"
+        log_info "  Retrying SRBMiner-MULTI v${MINER_VERSION}"
         log_info "  GPU mode:   disabled (failover)"
         log_info "----------------------------------------"
         exec ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $WORKER_FLAG $EXTRAS --disable-gpu

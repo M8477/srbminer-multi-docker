@@ -17,6 +17,7 @@ services:
       - POOL_PASSWORD=c=BTC
       - EXTRAS=--disable-gpu --api-enable --api-port 21550 --extended-log
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - VERSION_TAG=${VERSION_TAG:-3.2.8}
       - HSA_ENABLE_SDMA=0
       - ROCR_VISIBLE_DEVICES=0
       - HIP_VISIBLE_DEVICES=0

@@ -11,6 +11,7 @@ ENV POOL_PASSWORD="c=BTC"
 ENV EXTRAS="--disable-gpu --api-enable --api-port 21550 --extended-log"
 ENV LOG_LEVEL="info"
 ENV DRY_RUN="false"
+ENV VERSION_TAG=$VERSION_TAG
 ENV HSA_ENABLE_SDMA=0
 ENV ROCR_VISIBLE_DEVICES=0
 ENV HIP_VISIBLE_DEVICES=0
@@ -26,7 +27,9 @@ RUN apt-get -y update \
     && tar xf SRBMiner.tar.gz \
     && rm -rf SRBMiner.tar.gz \
     && mv /opt/SRBMiner-Multi-${VERSION_STRING}/ /opt/SRBMiner-Multi/ \
+    && chown -R nobody:nogroup /opt/SRBMiner-Multi/ \
     && groupadd -r srbminer && useradd -r -g srbminer -d /opt/SRBMiner-Multi -s /bin/bash srbminer \
+    && chown -R srbminer:srbminer /opt/SRBMiner-Multi/ \
     && groupadd -fr video && groupadd -fr render \
     && usermod -aG video,render srbminer \
     && apt-get -y autoremove --purge \
