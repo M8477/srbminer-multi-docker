@@ -30,8 +30,7 @@ log("=" * 56)
 log(f"  HA URL:         {HA_URL}")
 log(f"  Battery entity: {BATTERY_ENTITY}")
 log(f"  Solar entity:   {SOLAR_ENTITY}")
-log(f"  Battery min:    {BATTERY_MIN}%")
-log(f"  Solar min:      {SOLAR_MIN}W")
+log(f"  Logic:         mine when battery ≥ {BATTERY_MIN}% OR solar ≥ {SOLAR_MIN}W")
 log(f"  Poll interval:  {CHECK_SECS}s")
 log(f"  Heartbeat:      {HEARTBEAT_SECS}s")
 log(f"  Miner name:     {MINER_NAME}")
@@ -58,8 +57,8 @@ while True:
         else:
             battery = ha_state(BATTERY_ENTITY)
             solar   = ha_state(SOLAR_ENTITY)
-            should_mine = battery >= BATTERY_MIN and solar >= SOLAR_MIN
-            log(f"Battery: {battery:.1f}% | Solar: {solar:.0f}W | Should mine: {should_mine}")
+            should_mine = battery >= BATTERY_MIN or solar >= SOLAR_MIN
+            log(f"Battery: {battery:.1f}% | Solar: {solar:.0f}W | Mine: {should_mine} (battery{'≥' if battery >= BATTERY_MIN else '<'}{BATTERY_MIN}% {'OR' if should_mine else 'NOR'} solar{'≥' if solar >= SOLAR_MIN else '<'}{SOLAR_MIN}W)")
 
         try:
             miner = client.containers.get(MINER_NAME)
