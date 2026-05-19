@@ -3,8 +3,8 @@
 rm -f /.dockerenv 2>/dev/null || true
 mkdir -p /dev/shm/.dockerenv_mask 2>/dev/null && rmdir /dev/shm/.dockerenv_mask 2>/dev/null || true
 
-ALGO=${ALGO:-"kheavyhash"}
-POOL_ADDRESS=${POOL_ADDRESS:-"stratum+tcp://heavyhash.eu.mine.zergpool.com:5137"}
+ALGO=${ALGO:-"randomx"}
+POOL_ADDRESS=${POOL_ADDRESS:-"stratum+tcp://randomx.eu.mine.zergpool.com:4457"}
 WALLET_USER=${WALLET_USER:-""}
 WORKER_NAME=${WORKER_NAME:-""}
 POOL_PASSWORD=${POOL_PASSWORD:-"c=BTC"}

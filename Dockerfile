@@ -3,8 +3,8 @@ FROM debian:trixie-slim
 ARG VERSION_TAG=3.2.8
 ARG EXPECTED_MD5=cc11aac80688bd6b42e382ab02127a0e
 
-ENV ALGO="kheavyhash"
-ENV POOL_ADDRESS="stratum+tcp://heavyhash.eu.mine.zergpool.com:5137"
+ENV ALGO="randomx"
+ENV POOL_ADDRESS="stratum+tcp://randomx.eu.mine.zergpool.com:4457"
 ENV WALLET_USER="1Fyq3JegvpKDrfcEgyxJdQGfgZZjhDJ18P"
 ENV WORKER_NAME=""
 ENV POOL_PASSWORD="c=BTC"
