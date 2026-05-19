@@ -2,13 +2,11 @@
 
 High-performance CPU & AMD GPU miner paired with a Home Assistant solar controller and Kraken auto-sell bot. Mines only when your solar panels produce excess power and your battery is full. Sells the earned BTC automatically on Kraken.
 
-[![Docker Publish](https://github.com/M8477/srbminer-multi-docker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/M8477/srbminer-multi-docker/actions/workflows/docker-publish.yml)
-
 ## Stack Overview
 
 | Service | Image | Role |
 |---------|-------|------|
-| `srbminer` | `ghcr.io/m8477/srbminer-multi-docker:latest` | Dual GPU+CPU miner (heavyhash GPU + randomx CPU) via Unmineable → BTC |
+| `srbminer` | `ghcr.io/m8477/srbminer-multi-docker:latest` | Dual GPU+CPU miner (autolykos2 GPU + randomx CPU) via Unmineable → BTC |
 | `solar-controller` | `ghcr.io/m8477/solar-controller:latest` | Queries Home Assistant; starts/stops miner based on battery % and solar W |
 | `kraken-sell-bot` | `ghcr.io/m8477/kraken-sell-bot:latest` | Monitors Kraken BTC balance; auto-sells when above threshold (optional) |
 
@@ -40,7 +38,7 @@ Solar panels → Home Assistant sensors
              ↓ YES                    ↓ NO
         start srbminer          stop srbminer
              ↓
-    GPU: heavyhash + CPU: randomx → Unmineable (BTC payout)
+    GPU: autolykos2 + CPU: randomx → Unmineable (BTC payout)
              ↓
     BTC paid to your wallet → Kraken
              ↓
@@ -52,10 +50,14 @@ Solar panels → Home Assistant sensors
 | Mode | `ALGO` | `EXTRAS` | Description |
 |------|--------|----------|-------------|
 | CPU only | `randomx` | `--disable-gpu --api-enable --api-port 21550 --extended-log` | RandomX on all CPU threads |
-| GPU only | `heavyhash` | `--disable-cpu --api-enable --api-port 21550 --extended-log` | Heavyhash on AMD GPU |
-| GPU + CPU (default) | `heavyhash;randomx` | `--api-enable --api-port 21550 --extended-log` | Dual mining: heavyhash GPU + randomx CPU |
+| GPU only | `autolykos2` | `--disable-cpu --api-enable --api-port 21550 --extended-log` | Autolykos2 (Ergo) on AMD GPU |
+| GPU + CPU (default) | `autolykos2;randomx` | `--api-enable --api-port 21550 --extended-log` | Dual mining: autolykos2 GPU + randomx CPU |
 
-The `ALGO` variable uses semicolons for dual mining. `heavyhash;randomx` means GPU mines heavyhash and CPU mines randomx simultaneously.
+The `ALGO` variable uses semicolons for dual mining. `autolykos2;randomx` means GPU mines autolykos2 (Ergo) and CPU mines randomx simultaneously.
+
+**Important for dual mining:** Each algorithm needs its own pool. Set `POOL_ADDRESS` for the GPU algorithm and `POOL_ADDRESS_CPU` for the CPU algorithm:
+- GPU (autolykos2): `stratum+tcp://ergo.unmineable.com:3333` (ERG → BTC)
+- CPU (randomx): `stratum+tcp://rx.unmineable.com:3333` (BTC direct)
 
 ### Failover
 
@@ -70,8 +72,9 @@ Copy `.env.example` to `.env` and fill in:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `BTC_ADDRESS` | **Yes** | — | Your BTC wallet address for mining payouts |
-| `ALGO` | No | `heavyhash;randomx` | Algorithm(s). Use `;` for dual mining (GPU;CPU) |
-| `POOL_ADDRESS` | No | `stratum+tcp://rx.unmineable.com:3333` | Mining pool address |
+| `ALGO` | No | `autolykos2;randomx` | Algorithm(s). Use `;` for dual mining (GPU;CPU) |
+| `POOL_ADDRESS` | No | `stratum+tcp://ergo.unmineable.com:3333` | GPU mining pool (used as primary pool) |
+| `POOL_ADDRESS_CPU` | No | `stratum+tcp://rx.unmineable.com:3333` | CPU mining pool (dual mining only; falls back to POOL_ADDRESS) |
 | `WALLET_USER` | No | `BTC:${BTC_ADDRESS}` | Pool wallet (auto-generated from BTC_ADDRESS) |
 | `WORKER_NAME` | No | — | Miner worker name |
 | `POOL_PASSWORD` | No | `x` | Pool password |
@@ -135,11 +138,12 @@ SRBMiner 3.2.8+ supports RDNA4 GPUs. If GPU detection fails, ensure:
 3. Add your [environment variables](#environment-variables) under **Environment variables**
 4. **Deploy the stack**
 
-The `ALGO` env var supports semicolons for dual mining: `ALGO=heavyhash;randomx`
+The `ALGO` env var supports semicolons for dual mining: `ALGO=autolykos2;randomx`
 
 For CPU-only machines, set:
 ```
 ALGO=randomx
+POOL_ADDRESS=stratum+tcp://rx.unmineable.com:3333
 EXTRAS=--disable-gpu --api-enable --api-port 21550 --extended-log
 ```
 
@@ -192,7 +196,7 @@ docker run \
 
 | Problem | Solution |
 |---------|----------|
-| "Unknown algorithm" | Algorithm name is wrong. Use `randomx` for CPU, `heavyhash` for GPU. `kheavyhash` is NOT valid. |
+| "Unknown algorithm" | Algorithm name is wrong. Use `randomx` for CPU, `autolykos2` for GPU. `kheavyhash`/`heavyhash` need Kaspa pool (not Unmineable). |
 | Container exits code 0 instantly | Miner detects invalid algorithm or missing mining devices. Check `EXTRAS` and `ALGO`. |
 | "Huge-pages 2MB: disabled" | Set huge pages on host: `sudo sysctl -w vm.nr_hugepages=1280` |
 | "Run miner as administrator/root" | Container needs `privileged: true` for MSR tweaks |

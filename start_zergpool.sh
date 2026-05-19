@@ -2,8 +2,9 @@
 
 rm -f /.dockerenv 2>/dev/null || true
 
-ALGO=${ALGO:-"heavyhash;randomx"}
-POOL_ADDRESS=${POOL_ADDRESS:-"stratum+tcp://rx.unmineable.com:3333"}
+ALGO=${ALGO:-"autolykos2;randomx"}
+POOL_ADDRESS=${POOL_ADDRESS:-"stratum+tcp://ergo.unmineable.com:3333"}
+POOL_ADDRESS_CPU=${POOL_ADDRESS_CPU:-"stratum+tcp://rx.unmineable.com:3333"}
 WALLET_USER=${WALLET_USER:-""}
 WORKER_NAME=${WORKER_NAME:-""}
 POOL_PASSWORD=${POOL_PASSWORD:-"x"}
@@ -13,9 +14,26 @@ MINER_VERSION=${VERSION_TAG:-unknown}
 
 ALGO_GPU=""
 ALGO_CPU=""
+POOL_GPU=""
+POOL_CPU=""
+WALLET_GPU=""
+WALLET_CPU=""
+PASSWORD_GPU=""
+PASSWORD_CPU=""
 if [[ "$ALGO" == *";"* ]]; then
     ALGO_GPU=$(echo "$ALGO" | cut -d';' -f1)
     ALGO_CPU=$(echo "$ALGO" | cut -d';' -f2)
+    if [[ "$POOL_ADDRESS" == *";"* ]]; then
+        POOL_GPU=$(echo "$POOL_ADDRESS" | cut -d';' -f1)
+        POOL_CPU=$(echo "$POOL_ADDRESS" | cut -d';' -f2)
+    else
+        POOL_GPU="$POOL_ADDRESS"
+        POOL_CPU="${POOL_ADDRESS_CPU:-$POOL_ADDRESS}"
+    fi
+    WALLET_GPU="$WALLET_USER"
+    WALLET_CPU="$WALLET_USER"
+    PASSWORD_GPU="$POOL_PASSWORD"
+    PASSWORD_CPU="$POOL_PASSWORD"
 fi
 
 log_debug() { [[ "$LOG_LEVEL" == "debug" ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [DEBUG] $*"; }
@@ -66,7 +84,7 @@ crash_trap() {
 trap crash_trap EXIT
 
 log_info "Starting SRBMiner-MULTI v${MINER_VERSION}"
-log_debug "WALLET_USER=${WALLET_USER} ALGO=${ALGO} ALGO_GPU=${ALGO_GPU} ALGO_CPU=${ALGO_CPU} WORKER_NAME=${WORKER_NAME} DRY_RUN=${DRY_RUN:-false}"
+log_debug "WALLET_USER=${WALLET_USER} ALGO=${ALGO} ALGO_GPU=${ALGO_GPU} ALGO_CPU=${ALGO_CPU} POOL_GPU=${POOL_GPU} POOL_CPU=${POOL_CPU} WORKER_NAME=${WORKER_NAME} DRY_RUN=${DRY_RUN:-false}"
 
 if [[ -z "$WALLET_USER" ]]; then
     log_error "WALLET_USER is required but not set"
@@ -99,10 +117,12 @@ log_info "  Starting SRBMiner-MULTI v${MINER_VERSION}"
 if [[ -n "$ALGO_GPU" ]]; then
     log_info "  GPU algo:   $ALGO_GPU"
     log_info "  CPU algo:   $ALGO_CPU"
+    log_info "  GPU pool:   $POOL_GPU"
+    log_info "  CPU pool:   $POOL_CPU"
 else
     log_info "  Algorithm:  $ALGO"
+    log_info "  Pool:       $POOL_ADDRESS"
 fi
-log_info "  Pool:       $POOL_ADDRESS"
 log_info "  Wallet:     $(echo "$WALLET_USER" | cut -d',' -f1)"
 log_info "  Password:   $POOL_PASSWORD"
 log_info "  Extras:     $EXTRAS"
@@ -159,9 +179,9 @@ run_miner() {
     local cmd="./SRBMiner-MULTI"
     if [[ -n "$ALGO_GPU" ]]; then
         cmd="$cmd --algorithm-gpu $ALGO_GPU --algorithm-cpu $ALGO_CPU"
-        cmd="$cmd --pool $POOL_ADDRESS --pool $POOL_ADDRESS"
-        cmd="$cmd --wallet $WALLET_USER --wallet $WALLET_USER"
-        cmd="$cmd --password $POOL_PASSWORD --password $POOL_PASSWORD"
+        cmd="$cmd --pool $POOL_GPU --pool $POOL_CPU"
+        cmd="$cmd --wallet $WALLET_GPU --wallet $WALLET_CPU"
+        cmd="$cmd --password $PASSWORD_GPU --password $PASSWORD_CPU"
     else
         cmd="$cmd --algorithm $ALGO"
         cmd="$cmd --pool $POOL_ADDRESS --wallet $WALLET_USER --password $POOL_PASSWORD"
@@ -199,12 +219,14 @@ if [[ $GPU_ENABLED == true ]]; then
         log_info "----------------------------------------"
         log_info "  Retrying SRBMiner-MULTI v${MINER_VERSION}"
         log_info "  GPU mode:   disabled (failover)"
+        log_info "  Pool:       ${POOL_ADDRESS_CPU:-$POOL_ADDRESS}"
         log_info "----------------------------------------"
         MINER_START_TIME=$(date +%s)
         ALGO_GPU=""
         ALGO_CPU=""
         ALGO="randomx"
         DUAL_MINING=false
+        POOL_ADDRESS="${POOL_ADDRESS_CPU:-$POOL_ADDRESS}"
         run_miner --disable-gpu
         GPU_EXIT=$?
     fi

@@ -6,8 +6,9 @@ Always reference these instructions first and fallback to search or bash command
 
 ## Key Facts
 
-- **Algorithm**: Default is dual mining `heavyhash;randomx` (GPU+CPU). Use semicolons for dual mining.
-- **Pool**: Unmineable (`rx.unmineable.com:3333`). Zergpool is defunct.
+- **Algorithm**: Default is dual mining `autolykos2;randomx` (GPU+CPU). Use semicolons for dual mining.
+- **Pool**: GPU uses `ergo.unmineable.com:3333` (autolykos2 → ERG → BTC), CPU uses `rx.unmineable.com:3333` (randomx → BTC). Zergpool is defunct.
+- **Dual mining requires separate pools**: `POOL_ADDRESS` for GPU algo, `POOL_ADDRESS_CPU` for CPU algo. Different algorithms need different pool endpoints.
 - **Wallet format**: `BTC:<your_btc_address>` for Unmineable
 - **Pool password**: `x` for Unmineable
 - **Container runs as root** (privileged mode) for huge pages and MSR tweaks
@@ -39,8 +40,9 @@ Three services in docker-compose:
 ## Important Implementation Details
 
 - `start_zergpool.sh`: Entry point that sets huge pages, detects dual mining, constructs proper SRBMiner command line
-- `ALGO=heavyhash;randomx` is split into `ALGO_GPU=heavyhash` and `ALGO_CPU=randomx` by the start script
-- For dual mining, POOL_ADDRESS, WALLET_USER, and POOL_PASSWORD are duplicated with commas (SRBMiner requires N pools for N algorithms)
+- `ALGO=autolykos2;randomx` is split into `ALGO_GPU=autolykos2` and `ALGO_CPU=randomx` by the start script
+- For dual mining, `POOL_ADDRESS` is used for GPU and `POOL_ADDRESS_CPU` is used for CPU (different pool endpoints per algorithm)
+- `POOL_ADDRESS` can also contain semicolons for explicit per-algo pools: `POOL_ADDRESS=stratum+tcp://ergo.unmineable.com:3333;stratum+tcp://rx.unmineable.com:3333`
 - `rm -f /.dockerenv` at startup to counter SRBMiner container detection
 - `tty: true` and `stdin_open: true` in compose for SRBMiner TTY check
 - `init: true` in compose uses tini as PID 1 instead of bash
@@ -58,7 +60,8 @@ VERSION_TAG and EXPECTED_MD5 must match the SRBMiner-Multi release.
 ## Environment Variables
 
 Key vars (see README.md for full list):
-- ALGO: `randomx` (CPU), `heavyhash` (GPU), or `heavyhash;randomx` (dual)
-- POOL_ADDRESS: Mining pool URL
+- ALGO: `randomx` (CPU), `autolykos2` (GPU), or `autolykos2;randomx` (dual)
+- POOL_ADDRESS: GPU mining pool URL (default: ergo.unmineable.com for autolykos2)
+- POOL_ADDRESS_CPU: CPU mining pool URL (default: rx.unmineable.com for randomx)
 - WALLET_USER: Wallet address (format: `BTC:<address>` for Unmineable)
 - EXTRAS: Additional SRBMiner flags

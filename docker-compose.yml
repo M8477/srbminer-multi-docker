@@ -16,8 +16,9 @@ services:
     volumes:
       - /opt/rocm:/opt/rocm
     environment:
-      - ALGO=${ALGO:-heavyhash;randomx}
-      - POOL_ADDRESS=stratum+tcp://rx.unmineable.com:3333
+      - ALGO=${ALGO:-autolykos2;randomx}
+      - POOL_ADDRESS=${POOL_ADDRESS:-stratum+tcp://ergo.unmineable.com:3333}
+      - POOL_ADDRESS_CPU=${POOL_ADDRESS_CPU:-stratum+tcp://rx.unmineable.com:3333}
       - WALLET_USER=BTC:${BTC_ADDRESS:-}
       - WORKER_NAME=${WORKER_NAME}
       - POOL_PASSWORD=x
