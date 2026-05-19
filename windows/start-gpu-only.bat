@@ -18,7 +18,7 @@ echo ========================================
 %BMPATH%\SRBMiner-MULTI.exe ^
     --algorithm autolykos2 ^
     --pool %POOL% ^
-    --wallet %WALLET%.%WORKER% ^
+    --wallet %WALLET% ^
     --password %PASS% ^
     --disable-cpu ^
     --api-enable ^

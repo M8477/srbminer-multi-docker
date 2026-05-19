@@ -23,7 +23,7 @@ echo ========================================
     --algorithm-cpu %ALGO_CPU% ^
     --pool %POOL_GPU% ^
     --pool %POOL_CPU% ^
-    --wallet %WALLET%.%WORKER% ^
+    --wallet %WALLET% ^
     --wallet %WALLET% ^
     --password %PASS% ^
     --password %PASS% ^

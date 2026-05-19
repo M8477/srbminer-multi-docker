@@ -18,7 +18,7 @@ echo ========================================
 %BMPATH%\SRBMiner-MULTI.exe ^
     --algorithm randomx ^
     --pool %POOL% ^
-    --wallet %WALLET%.%WORKER% ^
+    --wallet %WALLET% ^
     --password %PASS% ^
     --disable-gpu ^
     --api-enable ^
