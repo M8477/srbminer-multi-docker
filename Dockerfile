@@ -18,7 +18,7 @@ ENV HIP_VISIBLE_DEVICES=0
 
 RUN apt-get -y update \
     && apt-get -y upgrade \
-    && apt-get -y install curl wget ca-certificates tar \
+    && apt-get -y install curl wget ca-certificates tar procps \
     && update-ca-certificates \
     && cd /opt \
     && VERSION_STRING=$(echo "$VERSION_TAG" | tr '.' '-') \
@@ -43,5 +43,8 @@ RUN chmod +x start_zergpool.sh && chown srbminer:srbminer start_zergpool.sh
 USER srbminer
 
 EXPOSE 21550
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD pgrep -x SRBMiner-MULTI > /dev/null || exit 1
 
 ENTRYPOINT ["./start_zergpool.sh"]

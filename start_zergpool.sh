@@ -23,7 +23,19 @@ crash_trap() {
         log_error "  Container staying alive for inspection."
         log_error "  Connect: docker exec -it srbminer bash"
         log_error "========================================"
-        log_error ""
+        log_error "Checking for crash diagnostics..."
+        log_error "Process list:"
+        ps aux 2>/dev/null || true
+        log_error "Miner binary:"
+        ls -la ./SRBMiner-MULTI 2>/dev/null || log_error "  NOT FOUND"
+        log_error "Last 20 lines of any log files:"
+        for f in *.log SRBMiner*.log; do
+            if [[ -f "$f" ]]; then
+                log_error "--- $f ---"
+                tail -20 "$f" 2>/dev/null || true
+            fi
+        done
+        log_error "Holding container alive (healthcheck will mark unhealthy)..."
         while true; do sleep 60; done
     fi
     exit $code
@@ -80,6 +92,15 @@ if [[ "${DRY_RUN,,}" == "true" ]]; then
 fi
 
 log_info "Launching miner..."
+
+if [[ ! -x ./SRBMiner-MULTI ]]; then
+    log_error "SRBMiner-MULTI binary not found or not executable!"
+    log_error "Contents of working directory:"
+    ls -la 2>/dev/null || true
+    exit 1
+fi
+
+log_debug "Binary: $(file ./SRBMiner-MULTI 2>/dev/null | cut -d: -f2-)"
 
 if [[ $GPU_ENABLED == true ]]; then
     ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $WORKER_FLAG $EXTRAS

@@ -2,16 +2,16 @@ import os, sys, time, docker, requests, json
 
 HA_URL         = os.environ["HA_URL"]
 HA_TOKEN       = os.environ["HA_TOKEN"]
-BATTERY_ENTITY = os.environ.get("BATTERY_ENTITY", "sensor.battery_state_of_charge")
-SOLAR_ENTITY   = os.environ.get("SOLAR_ENTITY",   "sensor.solar_power")
-BATTERY_MIN    = float(os.environ.get("BATTERY_MIN", 90))
-SOLAR_MIN      = float(os.environ.get("SOLAR_MIN",   800))
-CHECK_SECS     = int(os.environ.get("CHECK_SECS",    120))
+BATTERY_ENTITY = os.environ.get("BATTERY_ENTITY") or "sensor.battery_state_of_charge"
+SOLAR_ENTITY   = os.environ.get("SOLAR_ENTITY")   or "sensor.solar_power"
+BATTERY_MIN    = float(os.environ.get("BATTERY_MIN") or 90)
+SOLAR_MIN      = float(os.environ.get("SOLAR_MIN") or 800)
+CHECK_SECS     = int(os.environ.get("CHECK_SECS") or 120)
 MINER_NAME     = "srbminer"
-FORCE_MINE     = os.environ.get("FORCE_MINE", "").upper() in ("Y", "YES", "TRUE", "1")
-FORCE_MINS     = int(os.environ.get("FORCE_MINE_MINS", 30))
-HEARTBEAT_SECS = int(os.environ.get("HEARTBEAT_SECS", 60))
-API_PORT       = int(os.environ.get("API_PORT", 21550))
+FORCE_MINE     = (os.environ.get("FORCE_MINE") or "").upper() in ("Y", "YES", "TRUE", "1")
+FORCE_MINS     = int(os.environ.get("FORCE_MINE_MINS") or 30)
+HEARTBEAT_SECS = int(os.environ.get("HEARTBEAT_SECS") or 60)
+API_PORT       = int(os.environ.get("API_PORT") or 21550)
 
 sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, "reconfigure") else None
 
@@ -77,6 +77,23 @@ while True:
         try:
             miner = client.containers.get(MINER_NAME)
             miner_status = miner.status
+            miner_health = "none"
+            try:
+                miner_health = miner.attrs.get("State", {}).get("Health", {}).get("Status", "none")
+            except:
+                pass
+            miner_running = (miner_status == "running")
+            miner_unhealthy = miner_running and miner_health == "unhealthy"
+
+            if miner_unhealthy:
+                log("    Miner CRASHED (unhealthy) — restarting container")
+                miner.restart()
+                miner_running = True
+                last_heartbeat = time.time()
+                last_api_ok = None
+                time.sleep(10)
+
+            miner_status = miner.status
             miner_running = (miner_status == "running")
 
             if should_mine and miner_status != "running":
@@ -94,6 +111,11 @@ while True:
                 log(f"    Miner {'running' if miner_running else 'stopped'} (no change)")
 
             if miner_running:
+                miner_health_now = "none"
+                try:
+                    miner_health_now = miner.attrs.get("State", {}).get("Health", {}).get("Status", "none")
+                except:
+                    pass
                 api = miner_api(MINER_NAME)
                 if api:
                     if last_api_ok is None:
@@ -106,7 +128,7 @@ while True:
                     log(f"    HR: {hr} h/s | Shares: {shares} | Uptime: {uptime_str}")
                 else:
                     if last_api_ok is not None and time.time() - last_api_ok > 60:
-                        log(f"    API unresponsive for {int(time.time() - last_api_ok)}s")
+                        log(f"    API unresponsive for {int(time.time() - last_api_ok)}s | health={miner_health_now}")
         except docker.errors.NotFound:
             log("WARN: srbminer container not found - check stack deployment")
             miner_running = False
@@ -118,7 +140,13 @@ while True:
         time.sleep(min(10, deadline - time.time()))
         if miner_running and (time.time() - last_heartbeat) >= HEARTBEAT_SECS:
             last_heartbeat = time.time()
+            miner_h = "unknown"
+            try:
+                m = client.containers.get(MINER_NAME)
+                miner_h = m.attrs.get("State", {}).get("Health", {}).get("Status", "unknown")
+            except:
+                pass
             if last_api_ok and time.time() - last_api_ok < 120:
                 log(f"Heartbeat: API responding, miner healthy")
             else:
-                log(f"Heartbeat: waiting for miner API (may need --api-enable in EXTRAS)")
+                log(f"Heartbeat: waiting for miner API (may need --api-enable in EXTRAS) | health={miner_h}")
