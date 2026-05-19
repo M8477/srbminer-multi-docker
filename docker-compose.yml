@@ -13,7 +13,7 @@ services:
       - video
     environment:
       - ALGO=randomx
-      - POOL_ADDRESS=stratum+tcp://randomx.eu.mine.zergpool.com:4457
+      - POOL_ADDRESS=stratum+tcp://rx.eu.mine.zergpool.com:4457
       - WALLET_USER=${BTC_ADDRESS:-} 
       - WORKER_NAME=${WORKER_NAME}
       - POOL_PASSWORD=c=BTC
