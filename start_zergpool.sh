@@ -25,7 +25,7 @@ log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*"; }
 
 if [[ "$(id -u)" == "0" ]]; then
     HP_CURRENT=$(cat /proc/sys/vm/nr_hugepages 2>/dev/null || echo "0")
-    HP_NEEDED=1280
+    HP_NEEDED=2560
     if [[ "$HP_CURRENT" -lt "$HP_NEEDED" ]]; then
         log_info "Setting hugepages: $HP_CURRENT -> $HP_NEEDED"
         echo "$HP_NEEDED" > /proc/sys/vm/nr_hugepages 2>/dev/null \

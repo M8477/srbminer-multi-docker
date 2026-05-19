@@ -6,8 +6,8 @@ services:
     init: true
     privileged: true
     devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri/renderD129:/dev/dri/renderD129
+      - /dev/kfd
+      - /dev/dri/renderD129
     security_opt:
       - seccomp:unconfined
     group_add:
