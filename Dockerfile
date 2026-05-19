@@ -3,12 +3,12 @@ FROM debian:trixie-slim
 ARG VERSION_TAG=3.2.8
 ARG EXPECTED_MD5=cc11aac80688bd6b42e382ab02127a0e
 
-ENV ALGO="randomx"
+ENV ALGO="heavyhash;randomx"
 ENV POOL_ADDRESS="stratum+tcp://rx.unmineable.com:3333"
 ENV WALLET_USER="BTC:1Fyq3JegvpKDrfcEgyxJdQGfgZZjhDJ18P"
 ENV WORKER_NAME=""
 ENV POOL_PASSWORD="x"
-ENV EXTRAS="--disable-gpu --api-enable --api-port 21550 --extended-log"
+ENV EXTRAS="--api-enable --api-port 21550 --extended-log"
 ENV LOG_LEVEL="info"
 ENV DRY_RUN="false"
 ENV VERSION_TAG=$VERSION_TAG

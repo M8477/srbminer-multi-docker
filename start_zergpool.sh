@@ -2,12 +2,12 @@
 
 rm -f /.dockerenv 2>/dev/null || true
 
-ALGO=${ALGO:-"randomx"}
+ALGO=${ALGO:-"heavyhash;randomx"}
 POOL_ADDRESS=${POOL_ADDRESS:-"stratum+tcp://rx.unmineable.com:3333"}
 WALLET_USER=${WALLET_USER:-""}
 WORKER_NAME=${WORKER_NAME:-""}
 POOL_PASSWORD=${POOL_PASSWORD:-"x"}
-EXTRAS=${EXTRAS:-"--disable-gpu --api-enable --api-port 21550 --extended-log"}
+EXTRAS=${EXTRAS:-"--api-enable --api-port 21550 --extended-log"}
 LOG_LEVEL=${LOG_LEVEL:-"info"}
 MINER_VERSION=${VERSION_TAG:-unknown}
 
@@ -70,6 +70,9 @@ GPU_ENABLED=true
 if [[ "$EXTRAS" == *"--disable-gpu"* ]]; then
     GPU_ENABLED=false
 fi
+if [[ -n "$ALGO_GPU" ]]; then
+    GPU_ENABLED=true
+fi
 
 if [[ -n "$WORKER_NAME" ]]; then
     WORKER_FLAG="--worker $WORKER_NAME"
@@ -79,7 +82,12 @@ fi
 
 log_info "----------------------------------------"
 log_info "  Starting SRBMiner-MULTI v${MINER_VERSION}"
-log_info "  Algorithm:  $ALGO"
+if [[ -n "$ALGO_GPU" ]]; then
+    log_info "  GPU algo:   $ALGO_GPU"
+    log_info "  CPU algo:   $ALGO_CPU"
+else
+    log_info "  Algorithm:  $ALGO"
+fi
 log_info "  Pool:       $POOL_ADDRESS"
 log_info "  Wallet:     $WALLET_USER"
 log_info "  Password:   $POOL_PASSWORD"
@@ -122,8 +130,12 @@ ldd ./SRBMiner-MULTI 2>/dev/null | grep -i "not found" && log_error "MISSING LIB
 
 run_miner() {
     local extra_args="$EXTRAS $WORKER_FLAG $*"
-    log_info "Command: ./SRBMiner-MULTI --algorithm $ALGO --pool $POOL_ADDRESS --wallet <wallet> --password <password> $extra_args"
-    ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $extra_args --log-file /tmp/srbminer.log --log-file-mode 1 2>&1
+    local algo_flag="--algorithm $ALGO"
+    if [[ -n "$ALGO_GPU" ]]; then
+        algo_flag="--algorithm-gpu $ALGO_GPU --algorithm-cpu $ALGO_CPU"
+    fi
+    log_info "Command: ./SRBMiner-MULTI $algo_flag --pool $POOL_ADDRESS --wallet <wallet> --password <password> $extra_args"
+    ./SRBMiner-MULTI $algo_flag --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $extra_args --log-file /tmp/srbminer.log --log-file-mode 1 2>&1
     local exit_code=$?
     local end_time=$(date +%s)
     local elapsed=$((end_time - MINER_START_TIME))
