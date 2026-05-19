@@ -3,6 +3,7 @@ services:
     image: ghcr.io/m8477/srbminer-multi-docker:latest
     pull_policy: always
     container_name: srbminer
+    init: true
     devices:
       - /dev/kfd:/dev/kfd
       - /dev/dri/renderD129:/dev/dri/renderD129
@@ -23,6 +24,8 @@ services:
       - ROCR_VISIBLE_DEVICES=0
       - HIP_VISIBLE_DEVICES=0
     restart: "no"
+    tty: true
+    stdin_open: true
     ports:
       - "21550:21550"
 

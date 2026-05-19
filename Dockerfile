@@ -18,7 +18,7 @@ ENV HIP_VISIBLE_DEVICES=0
 
 RUN apt-get -y update \
     && apt-get -y upgrade \
-    && apt-get -y install curl wget ca-certificates tar procps strace \
+    && apt-get -y install curl wget ca-certificates tar procps \
     && update-ca-certificates \
     && cd /opt \
     && VERSION_STRING=$(echo "$VERSION_TAG" | tr '.' '-') \
@@ -34,7 +34,8 @@ RUN apt-get -y update \
     && usermod -aG video,render srbminer \
     && apt-get -y autoremove --purge \
     && apt-get -y clean \
-    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* \
+    && rm -f /.dockerenv
 
 WORKDIR /opt/SRBMiner-Multi/
 COPY start_zergpool.sh .

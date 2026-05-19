@@ -1,5 +1,8 @@
 #!/bin/bash
 
+rm -f /.dockerenv 2>/dev/null || true
+mkdir -p /dev/shm/.dockerenv_mask 2>/dev/null && rmdir /dev/shm/.dockerenv_mask 2>/dev/null || true
+
 ALGO=${ALGO:-"kheavyhash"}
 POOL_ADDRESS=${POOL_ADDRESS:-"stratum+tcp://heavyhash.eu.mine.zergpool.com:5137"}
 WALLET_USER=${WALLET_USER:-""}
@@ -106,15 +109,17 @@ ldd ./SRBMiner-MULTI 2>/dev/null | grep -i "not found" && log_error "MISSING LIB
 run_miner() {
     local extra_args="$EXTRAS $WORKER_FLAG $*"
     log_info "Command: ./SRBMiner-MULTI --algorithm $ALGO --pool $POOL_ADDRESS --wallet <wallet> --password <password> $extra_args"
-    local start_time=$(date +%s)
     ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $extra_args --log-file /tmp/srbminer.log --log-file-mode 1 2>&1
     local exit_code=$?
     local end_time=$(date +%s)
-    local elapsed=$((end_time - start_time))
+    local elapsed=$((end_time - MINER_START_TIME))
     if [[ $exit_code -ne 0 ]]; then
         log_error "Miner process exited with code $exit_code after ${elapsed}s"
     else
         log_info "Miner process exited with code $exit_code after ${elapsed}s"
+        if [[ $elapsed -lt 10 ]]; then
+            log_error "Miner exited too quickly (${elapsed}s) — possible environment detection issue"
+        fi
     fi
     if [[ -f /tmp/srbminer.log ]]; then
         log_info "=== Last 30 lines of miner log ==="
@@ -123,15 +128,11 @@ run_miner() {
     else
         log_warn "No miner log file found at /tmp/srbminer.log"
     fi
-    if [[ $elapsed -lt 10 ]]; then
-        log_error "Miner exited in ${elapsed}s — running strace to diagnose..."
-        strace -f -e trace=open,openat,read,write,connect,socket ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $extra_args 2>&1 | tail -80 || true
-        log_error "=== strace done ==="
-    fi
     return $exit_code
 }
 
 if [[ $GPU_ENABLED == true ]]; then
+    MINER_START_TIME=$(date +%s)
     run_miner
     GPU_EXIT=$?
     if [[ $GPU_EXIT -ne 0 ]]; then
@@ -140,11 +141,13 @@ if [[ $GPU_ENABLED == true ]]; then
         log_info "  Retrying SRBMiner-MULTI v${MINER_VERSION}"
         log_info "  GPU mode:   disabled (failover)"
         log_info "----------------------------------------"
+        MINER_START_TIME=$(date +%s)
         run_miner --disable-gpu
         GPU_EXIT=$?
     fi
     exit $GPU_EXIT
 else
+    MINER_START_TIME=$(date +%s)
     run_miner
     exit $?
 fi
