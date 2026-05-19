@@ -7,7 +7,7 @@ Always reference these instructions first and fallback to search or bash command
 ## Key Facts
 
 - **Algorithm**: Default is dual mining `autolykos2;randomx` (GPU+CPU). Use semicolons for dual mining.
-- **Pool**: GPU uses `ergo.unmineable.com:3333` (autolykos2 → ERG → BTC), CPU uses `rx.unmineable.com:3333` (randomx → BTC). Zergpool is defunct.
+- **Pool**: GPU uses `autolykos.unmineable.com:3333` (autolykos2 → ERG → BTC), CPU uses `rx.unmineable.com:3333` (randomx → BTC). Unmineable uses algorithm names as subdomains: `autolykos.unmineable.com`, `rx.unmineable.com`, `kawpow.unmineable.com`, etc.
 - **Dual mining requires separate pools**: `POOL_ADDRESS` for GPU algo, `POOL_ADDRESS_CPU` for CPU algo. Different algorithms need different pool endpoints.
 - **Wallet format**: `BTC:<your_btc_address>` for Unmineable
 - **Pool password**: `x` for Unmineable

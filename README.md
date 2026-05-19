@@ -56,7 +56,7 @@ Solar panels → Home Assistant sensors
 The `ALGO` variable uses semicolons for dual mining. `autolykos2;randomx` means GPU mines autolykos2 (Ergo) and CPU mines randomx simultaneously.
 
 **Important for dual mining:** Each algorithm needs its own pool. Set `POOL_ADDRESS` for the GPU algorithm and `POOL_ADDRESS_CPU` for the CPU algorithm:
-- GPU (autolykos2): `stratum+tcp://ergo.unmineable.com:3333` (ERG → BTC)
+- GPU (autolykos2): `stratum+tcp://autolykos.unmineable.com:3333` (ERG → BTC)
 - CPU (randomx): `stratum+tcp://rx.unmineable.com:3333` (BTC direct)
 
 ### Failover
@@ -73,7 +73,7 @@ Copy `.env.example` to `.env` and fill in:
 |----------|----------|---------|-------------|
 | `BTC_ADDRESS` | **Yes** | — | Your BTC wallet address for mining payouts |
 | `ALGO` | No | `autolykos2;randomx` | Algorithm(s). Use `;` for dual mining (GPU;CPU) |
-| `POOL_ADDRESS` | No | `stratum+tcp://ergo.unmineable.com:3333` | GPU mining pool (used as primary pool) |
+| `POOL_ADDRESS` | No | `stratum+tcp://autolykos.unmineable.com:3333` | GPU mining pool (used as primary pool) |
 | `POOL_ADDRESS_CPU` | No | `stratum+tcp://rx.unmineable.com:3333` | CPU mining pool (dual mining only; falls back to POOL_ADDRESS) |
 | `WALLET_USER` | No | `BTC:${BTC_ADDRESS}` | Pool wallet (auto-generated from BTC_ADDRESS) |
 | `WORKER_NAME` | No | — | Miner worker name |

@@ -3,7 +3,7 @@
 rm -f /.dockerenv 2>/dev/null || true
 
 ALGO=${ALGO:-"autolykos2;randomx"}
-POOL_ADDRESS=${POOL_ADDRESS:-"stratum+tcp://ergo.unmineable.com:3333"}
+POOL_ADDRESS=${POOL_ADDRESS:-"stratum+tcp://autolykos.unmineable.com:3333"}
 POOL_ADDRESS_CPU=${POOL_ADDRESS_CPU:-"stratum+tcp://rx.unmineable.com:3333"}
 WALLET_USER=${WALLET_USER:-""}
 WORKER_NAME=${WORKER_NAME:-""}
