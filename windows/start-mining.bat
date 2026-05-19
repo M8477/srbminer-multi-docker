@@ -7,7 +7,7 @@ set ALGO_GPU=autolykos2
 set ALGO_CPU=randomx
 set POOL_GPU=stratum+tcp://autolykos.unmineable.com:3333
 set POOL_CPU=stratum+tcp://rx.unmineable.com:3333
-set WALLET=BTC:1Fyq3JegvpKDrfcEgyxJdQGfgZZjhDJ18P
+set WALLET=BTC:3L6VrRrrvMmNiX3BHBrgvK9R8rmYkvYak7
 set WORKER=server1
 set PASS=x
 
