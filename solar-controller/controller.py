@@ -9,7 +9,7 @@ SOLAR_MIN      = float(os.environ.get("SOLAR_MIN") or 800)
 CHECK_SECS     = int(os.environ.get("CHECK_SECS") or 120)
 MINER_NAME     = "srbminer"
 FORCE_MINE     = (os.environ.get("FORCE_MINE") or "").upper() in ("Y", "YES", "TRUE", "1")
-FORCE_MINS     = int(os.environ.get("FORCE_MINE_MINS") or 30)
+FORCE_MINS     = int(os.environ.get("FORCE_MINE_MINS") or 0)
 HEARTBEAT_SECS = int(os.environ.get("HEARTBEAT_SECS") or 60)
 API_PORT       = int(os.environ.get("API_PORT") or 21550)
 
@@ -48,7 +48,10 @@ log(f"  Miner name:     {MINER_NAME}")
 log(f"  API port:       {API_PORT}")
 log(f"  Force mine:     {FORCE_MINE}")
 if FORCE_MINE:
-    log(f"  Force duration: {FORCE_MINS} min")
+    if FORCE_MINS > 0:
+        log(f"  Force duration: {FORCE_MINS} min")
+    else:
+        log(f"  Force duration: FOREVER")
 log(f"  API dashboard:  http://<host>:{API_PORT}/stats")
 log("=" * 56)
 
@@ -60,17 +63,21 @@ miner_running = False
 while True:
     try:
         if force_start_time is not None:
-            elapsed = (time.time() - force_start_time) / 60
-            if elapsed < FORCE_MINS:
+            if FORCE_MINS == 0:
                 should_mine = True
-                log(f"FORCED: mining {FORCE_MINS - elapsed:.0f}min remaining")
+                log(f"FORCED: mining FOREVER")
             else:
-                force_start_time = None
-                log("FORCED: period ended - resuming normal control")
-                battery = ha_state(BATTERY_ENTITY)
-                solar   = ha_state(SOLAR_ENTITY)
-                should_mine = battery >= BATTERY_MIN or solar >= SOLAR_MIN
-                log(f"  Battery: {battery:.1f}% | Solar: {solar:.0f}W | Mine: {should_mine}")
+                elapsed = (time.time() - force_start_time) / 60
+                if elapsed < FORCE_MINS:
+                    should_mine = True
+                    log(f"FORCED: mining {FORCE_MINS - elapsed:.0f}min remaining")
+                else:
+                    force_start_time = None
+                    log("FORCED: period ended - resuming normal control")
+                    battery = ha_state(BATTERY_ENTITY)
+                    solar   = ha_state(SOLAR_ENTITY)
+                    should_mine = battery >= BATTERY_MIN or solar >= SOLAR_MIN
+                    log(f"  Battery: {battery:.1f}% | Solar: {solar:.0f}W | Mine: {should_mine}")
         else:
             battery = ha_state(BATTERY_ENTITY)
             solar   = ha_state(SOLAR_ENTITY)
