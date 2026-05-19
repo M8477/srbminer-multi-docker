@@ -118,14 +118,27 @@ while True:
                     pass
                 api = miner_api(MINER_NAME)
                 if api:
-                    if last_api_ok is None:
-                        log(f"    API ONLINE - v{api.get('version','?')} | {api.get('algorithm','?')}")
-                    last_api_ok = time.time()
-                    hr = api.get("hashrate", api.get("hashrate_total", 0))
-                    shares = api.get("total_shares", api.get("shares", {}).get("accepted", 0))
-                    uptime_secs = api.get("uptime", 0)
+                    algos = api.get("algorithms", [])
+                    hr_parts = []
+                    total_shares = 0
+                    for algo in algos:
+                        name = algo.get("name", "?")
+                        shares_data = algo.get("shares", {})
+                        total_shares += shares_data.get("accepted", 0)
+                        hr_data = algo.get("hashrate", {})
+                        gpu_hr = hr_data.get("gpu", {}).get("total", 0)
+                        cpu_hr = hr_data.get("cpu", {}).get("total", 0)
+                        algo_hr = gpu_hr if gpu_hr else cpu_hr if cpu_hr else 0
+                        if algo_hr:
+                            hr_parts.append(f"{name}: {algo_hr:,.0f} h/s" if algo_hr > 1000 else f"{name}: {algo_hr:.1f} h/s")
+                    hr_str = " | ".join(hr_parts) if hr_parts else "0 h/s"
+                    uptime_secs = api.get("mining_time", 0)
                     uptime_str = f"{int(uptime_secs//3600)}h{int((uptime_secs%3600)//60)}m" if uptime_secs else "0m"
-                    log(f"    HR: {hr} h/s | Shares: {shares} | Uptime: {uptime_str}")
+                    if last_api_ok is None:
+                        algo_names = ", ".join(a.get("name","?") for a in algos) if algos else api.get("algorithm","?")
+                        log(f"    API ONLINE - v{api.get('miner_version','?')} | {algo_names}")
+                    last_api_ok = time.time()
+                    log(f"    {hr_str} | Shares: {total_shares} | Uptime: {uptime_str}")
                 else:
                     if last_api_ok is not None and time.time() - last_api_ok > 60:
                         log(f"    API unresponsive for {int(time.time() - last_api_ok)}s | health={miner_health_now}")
