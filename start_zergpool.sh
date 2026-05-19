@@ -188,7 +188,10 @@ run_miner() {
     fi
     cmd="$cmd $extra_args --log-file /tmp/srbminer.log --log-file-mode 1"
     log_info "Command: $cmd"
-    $cmd 2>&1
+    $cmd >>/tmp/srbminer_stdout.log 2>&1 &
+    local miner_pid=$!
+    log_info "Miner PID: $miner_pid"
+    wait $miner_pid 2>/dev/null
     local exit_code=$?
     local end_time=$(date +%s)
     local elapsed=$((end_time - MINER_START_TIME))
