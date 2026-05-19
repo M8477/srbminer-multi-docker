@@ -16,26 +16,28 @@ log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*"; }
 
 crash_trap() {
     local code=$?
+    log_error ""
+    log_error "========================================"
+    log_error "  CONTAINER EXITING (exit code: $code)"
     if [[ $code -ne 0 ]] && [[ "${DRY_RUN:-false}" != "true" ]]; then
-        log_error ""
-        log_error "========================================"
-        log_error "  MINER CRASHED (exit code: $code)"
-        log_error "  Container staying alive for inspection."
+        log_error "  MINER CRASHED - holding container alive"
         log_error "  Connect: docker exec -it srbminer bash"
-        log_error "========================================"
-        log_error "Checking for crash diagnostics..."
-        log_error "Process list:"
-        ps aux 2>/dev/null || true
-        log_error "Miner binary:"
-        ls -la ./SRBMiner-MULTI 2>/dev/null || log_error "  NOT FOUND"
-        log_error "Last 20 lines of any log files:"
-        for f in *.log SRBMiner*.log; do
-            if [[ -f "$f" ]]; then
-                log_error "--- $f ---"
-                tail -20 "$f" 2>/dev/null || true
-            fi
-        done
-        log_error "Holding container alive (healthcheck will mark unhealthy)..."
+    fi
+    log_error "========================================"
+    log_error "Checking process list:"
+    ps aux 2>/dev/null || echo "  (ps not available)"
+    log_error "Miner binary:"
+    ls -la ./SRBMiner-MULTI 2>/dev/null || log_error "  NOT FOUND"
+    log_error "Any .log files in working dir:"
+    for f in *.log SRBMiner*.log; do
+        if [[ -f "$f" ]]; then
+            log_error "--- $f (last 20 lines) ---"
+            tail -20 "$f" 2>/dev/null || true
+        fi
+    done
+    log_error "Finished diagnostics."
+    if [[ $code -ne 0 ]] && [[ "${DRY_RUN:-false}" != "true" ]]; then
+        log_error "Holding container alive for inspection (healthcheck will mark unhealthy)..."
         while true; do sleep 60; done
     fi
     exit $code
@@ -101,6 +103,8 @@ if [[ ! -x ./SRBMiner-MULTI ]]; then
 fi
 
 log_debug "Binary: $(file ./SRBMiner-MULTI 2>/dev/null | cut -d: -f2-)"
+log_info "Checking shared library dependencies..."
+ldd ./SRBMiner-MULTI 2>/dev/null | grep -i "not found" && log_error "MISSING LIBRARIES ABOVE" || log_info "All libs OK"
 
 run_miner() {
     local extra_args="$EXTRAS $WORKER_FLAG $*"
