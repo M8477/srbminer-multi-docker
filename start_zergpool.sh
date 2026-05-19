@@ -88,13 +88,10 @@ else
 fi
 
 if [[ -n "$ALGO_GPU" ]]; then
-    POOL_COUNT=$(echo "$POOL_ADDRESS" | tr ',' '\n' | wc -l)
-    if [[ "$POOL_COUNT" -lt 2 ]]; then
-        POOL_ADDRESS="${POOL_ADDRESS},${POOL_ADDRESS}"
-        log_info "Dual mining: duplicating pool address for 2 algorithms"
-    fi
-    WALLET_USER="${WALLET_USER},${WALLET_USER}"
-    POOL_PASSWORD="${POOL_PASSWORD},${POOL_PASSWORD}"
+    DUAL_MINING=true
+    log_info "Dual mining: GPU=$ALGO_GPU CPU=$ALGO_CPU"
+else
+    DUAL_MINING=false
 fi
 
 log_info "----------------------------------------"
@@ -106,7 +103,7 @@ else
     log_info "  Algorithm:  $ALGO"
 fi
 log_info "  Pool:       $POOL_ADDRESS"
-log_info "  Wallet:     $WALLET_USER"
+log_info "  Wallet:     $(echo "$WALLET_USER" | cut -d',' -f1)"
 log_info "  Password:   $POOL_PASSWORD"
 log_info "  Extras:     $EXTRAS"
 log_info "  GPU mode:   $($GPU_ENABLED && echo "enabled" || echo "disabled")"
@@ -144,12 +141,19 @@ ldd ./SRBMiner-MULTI 2>/dev/null | grep -i "not found" && log_error "MISSING LIB
 
 run_miner() {
     local extra_args="$EXTRAS $WORKER_FLAG $*"
-    local algo_flag="--algorithm $ALGO"
+    local cmd="./SRBMiner-MULTI"
     if [[ -n "$ALGO_GPU" ]]; then
-        algo_flag="--algorithm-gpu $ALGO_GPU --algorithm-cpu $ALGO_CPU"
+        cmd="$cmd --algorithm-gpu $ALGO_GPU --algorithm-cpu $ALGO_CPU"
+        cmd="$cmd --pool $POOL_ADDRESS --pool $POOL_ADDRESS"
+        cmd="$cmd --wallet $WALLET_USER --wallet $WALLET_USER"
+        cmd="$cmd --password $POOL_PASSWORD --password $POOL_PASSWORD"
+    else
+        cmd="$cmd --algorithm $ALGO"
+        cmd="$cmd --pool $POOL_ADDRESS --wallet $WALLET_USER --password $POOL_PASSWORD"
     fi
-    log_info "Command: ./SRBMiner-MULTI $algo_flag --pool $POOL_ADDRESS --wallet <wallet> --password <password> $extra_args"
-    ./SRBMiner-MULTI $algo_flag --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $extra_args --log-file /tmp/srbminer.log --log-file-mode 1 2>&1
+    cmd="$cmd $extra_args --log-file /tmp/srbminer.log --log-file-mode 1"
+    log_info "Command: $cmd"
+    $cmd 2>&1
     local exit_code=$?
     local end_time=$(date +%s)
     local elapsed=$((end_time - MINER_START_TIME))
@@ -185,9 +189,7 @@ if [[ $GPU_ENABLED == true ]]; then
         ALGO_GPU=""
         ALGO_CPU=""
         ALGO="randomx"
-        POOL_ADDRESS=$(echo "$POOL_ADDRESS" | cut -d',' -f1)
-        WALLET_USER=$(echo "$WALLET_USER" | cut -d',' -f1)
-        POOL_PASSWORD=$(echo "$POOL_PASSWORD" | cut -d',' -f1)
+        DUAL_MINING=false
         run_miner --disable-gpu
         GPU_EXIT=$?
     fi
