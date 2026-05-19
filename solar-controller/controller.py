@@ -66,8 +66,11 @@ while True:
                 log(f"FORCED: mining {FORCE_MINS - elapsed:.0f}min remaining")
             else:
                 force_start_time = None
-                should_mine = False
                 log("FORCED: period ended - resuming normal control")
+                battery = ha_state(BATTERY_ENTITY)
+                solar   = ha_state(SOLAR_ENTITY)
+                should_mine = battery >= BATTERY_MIN or solar >= SOLAR_MIN
+                log(f"  Battery: {battery:.1f}% | Solar: {solar:.0f}W | Mine: {should_mine}")
         else:
             battery = ha_state(BATTERY_ENTITY)
             solar   = ha_state(SOLAR_ENTITY)
