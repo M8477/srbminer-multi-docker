@@ -109,10 +109,17 @@ ldd ./SRBMiner-MULTI 2>/dev/null | grep -i "not found" && log_error "MISSING LIB
 run_miner() {
     local extra_args="$EXTRAS $WORKER_FLAG $*"
     log_info "Command: ./SRBMiner-MULTI --algorithm $ALGO --pool $POOL_ADDRESS --wallet <wallet> --password <password> $extra_args"
-    ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $extra_args 2>&1
+    ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $extra_args --log-file /tmp/srbminer.log --log-file-mode 1 2>&1
     local exit_code=$?
     if [[ $exit_code -ne 0 ]]; then
         log_error "Miner process exited with code $exit_code"
+    else
+        log_info "Miner process exited with code $exit_code"
+    fi
+    if [[ -f /tmp/srbminer.log ]]; then
+        log_info "=== Last 30 lines of miner log ==="
+        tail -30 /tmp/srbminer.log 2>/dev/null || true
+        log_info "=== End miner log ==="
     fi
     return $exit_code
 }
