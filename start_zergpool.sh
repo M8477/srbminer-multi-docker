@@ -11,6 +11,13 @@ EXTRAS=${EXTRAS:-"--api-enable --api-port 21550 --extended-log"}
 LOG_LEVEL=${LOG_LEVEL:-"info"}
 MINER_VERSION=${VERSION_TAG:-unknown}
 
+ALGO_GPU=""
+ALGO_CPU=""
+if [[ "$ALGO" == *";"* ]]; then
+    ALGO_GPU=$(echo "$ALGO" | cut -d';' -f1)
+    ALGO_CPU=$(echo "$ALGO" | cut -d';' -f2)
+fi
+
 log_debug() { [[ "$LOG_LEVEL" == "debug" ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [DEBUG] $*"; }
 log_info()  { [[ "$LOG_LEVEL" =~ ^(debug|info)$ ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
 log_warn()  { [[ "$LOG_LEVEL" =~ ^(debug|info|warn)$ ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN]  $*"; }
@@ -59,7 +66,7 @@ crash_trap() {
 trap crash_trap EXIT
 
 log_info "Starting SRBMiner-MULTI v${MINER_VERSION}"
-log_debug "WALLET_USER=${WALLET_USER} ALGO=${ALGO} WORKER_NAME=${WORKER_NAME} DRY_RUN=${DRY_RUN:-false}"
+log_debug "WALLET_USER=${WALLET_USER} ALGO=${ALGO} ALGO_GPU=${ALGO_GPU} ALGO_CPU=${ALGO_CPU} WORKER_NAME=${WORKER_NAME} DRY_RUN=${DRY_RUN:-false}"
 
 if [[ -z "$WALLET_USER" ]]; then
     log_error "WALLET_USER is required but not set"
@@ -78,6 +85,16 @@ if [[ -n "$WORKER_NAME" ]]; then
     WORKER_FLAG="--worker $WORKER_NAME"
 else
     WORKER_FLAG=""
+fi
+
+if [[ -n "$ALGO_GPU" ]]; then
+    POOL_COUNT=$(echo "$POOL_ADDRESS" | tr ',' '\n' | wc -l)
+    if [[ "$POOL_COUNT" -lt 2 ]]; then
+        POOL_ADDRESS="${POOL_ADDRESS},${POOL_ADDRESS}"
+        log_info "Dual mining: duplicating pool address for 2 algorithms"
+    fi
+    WALLET_USER="${WALLET_USER},${WALLET_USER}"
+    POOL_PASSWORD="${POOL_PASSWORD},${POOL_PASSWORD}"
 fi
 
 log_info "----------------------------------------"
@@ -108,9 +125,6 @@ if [[ "${DRY_RUN,,}" == "true" ]]; then
 
     log_info "Binary:    $(file ./SRBMiner-MULTI 2>/dev/null | cut -d: -f2-)"
     log_info "Version:   ${MINER_VERSION}"
-    log_info "Algorithm: $ALGO list:"
-    ./SRBMiner-MULTI --list-algorithms 2>/dev/null | grep -i "$ALGO" || log_warn "  Algorithm '$ALGO' not found in supported list"
-
     log_info "Dry run complete — all checks passed."
     exit 0
 fi
@@ -168,6 +182,12 @@ if [[ $GPU_ENABLED == true ]]; then
         log_info "  GPU mode:   disabled (failover)"
         log_info "----------------------------------------"
         MINER_START_TIME=$(date +%s)
+        ALGO_GPU=""
+        ALGO_CPU=""
+        ALGO="randomx"
+        POOL_ADDRESS=$(echo "$POOL_ADDRESS" | cut -d',' -f1)
+        WALLET_USER=$(echo "$WALLET_USER" | cut -d',' -f1)
+        POOL_PASSWORD=$(echo "$POOL_PASSWORD" | cut -d',' -f1)
         run_miner --disable-gpu
         GPU_EXIT=$?
     fi

@@ -8,9 +8,9 @@ High-performance CPU & AMD GPU miner paired with a Home Assistant solar controll
 
 | Service | Image | Role |
 |---------|-------|------|
-| `srbminer` | `ghcr.io/m8477/srbminer-multi-docker:latest` | CPU/GPU miner (kheavyhash → BTC) |
+| `srbminer` | `ghcr.io/m8477/srbminer-multi-docker:latest` | Dual GPU+CPU miner (heavyhash GPU + randomx CPU) via Unmineable → BTC |
 | `solar-controller` | `ghcr.io/m8477/solar-controller:latest` | Queries Home Assistant; starts/stops miner based on battery % and solar W |
-| `kraken-sell-bot` | `ghcr.io/m8477/kraken-sell-bot:latest` | Monitors Kraken BTC balance; auto-sells when above threshold |
+| `kraken-sell-bot` | `ghcr.io/m8477/kraken-sell-bot:latest` | Monitors Kraken BTC balance; auto-sells when above threshold (optional) |
 
 [Browse packages](https://github.com/M8477?tab=packages&repo_name=srbminer-multi-docker)
 
@@ -24,115 +24,146 @@ docker compose up -d
 
 ## Prerequisites
 
-- **AMD GPU mining:** ROCm kernel driver installed on host. The `video` group in the container must match the host's GID (usually `44` but verify with `getent group video`).
-- **Home Assistant** accessible from the Docker host for solar/battery sensors.
-- **Kraken API keys** with trading permissions to auto-sell.
+- **Huge pages** (recommended for RandomX performance): `sudo sysctl -w vm.nr_hugepages=1280` and persist with `echo "vm.nr_hugepages=1280" | sudo tee /etc/sysctl.d/99-hugepages.conf`
+- **AMD GPU mining** (optional): ROCm kernel driver installed on host. Verify with `ls /dev/dri/renderD*`
+- **Home Assistant** accessible from the Docker host for solar/battery sensors
+- **Kraken API keys** (optional — if not set, kraken-sell-bot exits gracefully)
 
-## Environment Variables
-
-Copy `.env.example` to `.env` and fill in:
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `BTC_ADDRESS` | **Yes** | — | Your BTC wallet for mining payouts |
-| `WORKER_NAME` | No | — | Optional miner worker name |
-| `HA_URL` | **Yes** | `http://homeassistant.local:8123` | Home Assistant URL |
-| `HA_TOKEN` | **Yes** | — | Long-lived access token from HA |
-| `BATTERY_ENTITY` | No | `sensor.my_home_percentage_charged` | HA entity for battery % |
-| `SOLAR_ENTITY` | No | `sensor.my_home_solar_power` | HA entity for solar power (W) |
-| `BATTERY_MIN` | No | `90` | Battery % required before mining starts |
-| `SOLAR_MIN` | No | `800` | Solar watts required before mining starts |
-| `CHECK_SECS` | No | `120` | How often the controller polls HA |
-| `KRAKEN_KEY` | **Yes** | — | Kraken API key |
-| `KRAKEN_SECRET` | **Yes** | — | Kraken API secret |
-| `MIN_BTC_SELL` | No | `0.0005` | BTC balance threshold to trigger a sell |
-| `LOG_LEVEL` | No | `info` | `debug` \| `info` \| `warn` \| `error` \| `quiet` |
-| `DRY_RUN` | No | `false` | Set `true` to validate config without mining |
-| `EXTRAS` | No | `--disable-gpu --api-enable --api-port 21550 --extended-log` | Miner flags. See [PARAMETERS.md](./PARAMETERS.md) |
-
-### Log Levels
-
-| Level | Output |
-|-------|--------|
-| `debug` | Timestamps, all resolved vars, version detection, full startup banner |
-| `info` | Timestamped startup banner with config summary |
-| `warn` | Warnings only |
-| `error` | Only on failure |
-| `quiet` | No wrapper output — raw miner output only |
-
-Miner output always passes through regardless of `LOG_LEVEL`.
-
-## How It Works
+## Architecture
 
 ```
 Solar panels → Home Assistant sensors
                         ↓
-               solar-controller (poll every CHECK_SECS)
+               solar-controller (polls every CHECK_SECS)
                         ↓
-          battery ≥ 90% AND solar ≥ 800W ?
-             ↓ YES                   ↓ NO
+          battery ≥ BATTERY_MIN% OR solar ≥ SOLAR_MINW ?
+             ↓ YES                    ↓ NO
         start srbminer          stop srbminer
              ↓
-        mine kheavyhash → zergpool (BTC)
+    GPU: heavyhash + CPU: randomx → Unmineable (BTC payout)
              ↓
     BTC paid to your wallet → Kraken
              ↓
       kraken-sell-bot auto-sells BTC → GBP
 ```
 
-## Advanced Parameters
+### Mining Modes
 
-See [PARAMETERS.md](./PARAMETERS.md) for the full SRBMiner-MULTI parameter reference. All miner flags can be passed via the `EXTRAS` env var.
+| Mode | `ALGO` | `EXTRAS` | Description |
+|------|--------|----------|-------------|
+| CPU only | `randomx` | `--disable-gpu --api-enable --api-port 21550 --extended-log` | RandomX on all CPU threads |
+| GPU only | `heavyhash` | `--disable-cpu --api-enable --api-port 21550 --extended-log` | Heavyhash on AMD GPU |
+| GPU + CPU (default) | `heavyhash;randomx` | `--api-enable --api-port 21550 --extended-log` | Dual mining: heavyhash GPU + randomx CPU |
 
-## GPU Mining vs CPU Mining
+The `ALGO` variable uses semicolons for dual mining. `heavyhash;randomx` means GPU mines heavyhash and CPU mines randomx simultaneously.
 
-**CPU mining (default):** `EXTRAS` includes `--disable-gpu`. Works everywhere.
+### Failover
 
-**GPU mining:** Remove `--disable-gpu` from `EXTRAS`. Requires:
-- ROCm kernel driver on host
-- Matching `renderD*` device path (check with `ls /dev/dri/renderD*`)
+When GPU mining is enabled and the GPU fails, the start script automatically retries in CPU-only mode (randomx with `--disable-gpu`).
 
-```diff
-- EXTRAS=--disable-gpu --api-enable --api-port 21550
-+ EXTRAS=--api-enable --api-port 21550
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in:
+
+### Miner
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `BTC_ADDRESS` | **Yes** | — | Your BTC wallet address for mining payouts |
+| `ALGO` | No | `heavyhash;randomx` | Algorithm(s). Use `;` for dual mining (GPU;CPU) |
+| `POOL_ADDRESS` | No | `stratum+tcp://rx.unmineable.com:3333` | Mining pool address |
+| `WALLET_USER` | No | `BTC:${BTC_ADDRESS}` | Pool wallet (auto-generated from BTC_ADDRESS) |
+| `WORKER_NAME` | No | — | Miner worker name |
+| `POOL_PASSWORD` | No | `x` | Pool password |
+| `EXTRAS` | No | `--api-enable --api-port 21550 --extended-log` | Extra SRBMiner flags. See [PARAMETERS.md](./PARAMETERS.md) |
+| `LOG_LEVEL` | No | `info` | `debug` \| `info` \| `warn` \| `error` |
+| `DRY_RUN` | No | `false` | Set `true` to validate config without mining |
+| `VERSION_TAG` | No | `3.2.8` | SRBMiner version (must match Dockerfile) |
+
+### Solar Controller
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `HA_URL` | **Yes** | — | Home Assistant URL (e.g. `http://192.168.0.115:8123`) |
+| `HA_TOKEN` | **Yes** | — | Long-lived access token from HA |
+| `BATTERY_ENTITY` | No | `sensor.battery_state_of_charge` | HA entity for battery % |
+| `SOLAR_ENTITY` | No | `sensor.solar_power` | HA entity for solar power (W) |
+| `BATTERY_MIN` | No | `90` | Battery % threshold to start mining |
+| `SOLAR_MIN` | No | `800` | Solar W threshold to start mining (set to `0` to ignore solar) |
+| `CHECK_SECS` | No | `120` | How often to poll HA (seconds) |
+| `FORCE_MINE` | No | — | Set `Y` to force mining for `FORCE_MINE_MINS` minutes |
+| `FORCE_MINE_MINS` | No | `30` | Duration of forced mining (minutes) |
+| `HEARTBEAT_SECS` | No | `60` | How often to log miner status |
+| `API_PORT` | No | `21550` | Miner API port |
+
+### Kraken Sell Bot
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `KRAKEN_KEY` | No | — | Kraken API key. If not set, bot exits gracefully (disabled) |
+| `KRAKEN_SECRET` | No | — | Kraken API secret. If not set, bot exits gracefully (disabled) |
+| `MIN_BTC_SELL` | No | `0.0005` | BTC balance threshold to trigger a sell |
+
+> **Note:** Only one kraken-sell-bot is needed for the entire stack. On additional machines, leave `KRAKEN_KEY`/`KRAKEN_SECRET` empty and the container will exit cleanly with "kraken-sell-bot disabled".
+
+## GPU Mining Setup
+
+GPU mining requires AMD ROCm drivers on the host and device mappings in docker-compose:
+
+```yaml
+devices:
+  - /dev/kfd:/dev/kfd
+  - /dev/dri/renderD129:/dev/dri/renderD129  # Adjust for your GPU
 ```
 
-## Version Updates
+Find your renderD device: `ls /dev/dri/renderD*`
 
-A [scheduled GitHub Action](.github/workflows/version-check.yml) checks daily for new [SRBMiner-Multi releases](https://github.com/doktor83/SRBMiner-Multi/releases). When a new version is detected, it automatically opens a PR updating `VERSION_TAG` and `EXPECTED_MD5`.
-
-**Manual bump:** Update these two lines in `Dockerfile`, then push:
-```diff
--ARG VERSION_TAG=2.9.8
--ARG EXPECTED_MD5=4c3976d4f846d700b44331919bc4d7a7
-+ARG VERSION_TAG=2.9.9
-+ARG EXPECTED_MD5=<md5 from release notes>
-```
+The container runs privileged for MSR tweaks and huge pages (significant RandomX performance boost). If you prefer lower privileges, set huge pages on the host instead.
 
 ## Portainer Deployment
 
-The stack is designed for Portainer with all images pre-built on GHCR — no `build:` directives, no local file mounts needed (except `docker.sock` for the controller).
-
 1. **Add a stack** in Portainer
 2. **Paste** the contents of `docker-compose.yml`
-3. Add your [environment variables](#environment-variables) under **Environment variables** or create a `.env` file
+3. Add your [environment variables](#environment-variables) under **Environment variables**
 4. **Deploy the stack**
 
-> The `HSA_ENABLE_SDMA`, `ROCR_VISIBLE_DEVICES`, and `HIP_VISIBLE_DEVICES` vars are only needed for AMD GPU mining. Remove them for CPU-only setups.
+The `ALGO` env var supports semicolons for dual mining: `ALGO=heavyhash;randomx`
+
+For CPU-only machines, set:
+```
+ALGO=randomx
+EXTRAS=--disable-gpu --api-enable --api-port 21550 --extended-log
+```
+
+Remove GPU device mappings (`/dev/kfd`, `/dev/dri/renderD129`) for CPU-only setups.
+
+## API Dashboard
+
+Access miner stats at `http://<host>:21550/stats` (GUI) or `http://<host>:21550` (JSON).
+
+## Health Monitoring
+
+- **Docker HEALTHCHECK**: `pgrep -x SRBMiner-MULTI` — marks container unhealthy if miner process dies
+- **solar-controller**: Detects unhealthy containers and restarts them automatically
+- **Crash trap**: On non-zero exit, container stays alive for inspection (`docker exec -it srbminer bash`)
+
+## Version Updates
+
+A [scheduled GitHub Action](.github/workflows/version-check.yml) checks daily for new [SRBMiner-Multi releases](https://github.com/doktor83/SRBMiner-Multi/releases). When detected, it opens a PR updating `VERSION_TAG` and `EXPECTED_MD5`.
+
+**Manual bump:** Update in `Dockerfile`, then push:
+```diff
+-ARG VERSION_TAG=3.2.8
+-ARG EXPECTED_MD5=cc11aac80688bd6b42e382ab02127a0e
++ARG VERSION_TAG=3.2.9
++ARG EXPECTED_MD5=<md5 from release notes>
+```
 
 ## Local Build
 
-Build the miner image locally:
-
 ```bash
 docker build --build-arg VERSION_TAG=3.2.8 -t srbminer-multi:local .
-docker run -e WALLET_USER="your_wallet" srbminer-multi:local
-```
-
-Or use the helper script:
-
-```bash
-./build.sh
+docker run -e WALLET_USER="BTC:your_wallet" srbminer-multi:local
 ```
 
 ## Standalone Miner Usage
@@ -140,10 +171,26 @@ Or use the helper script:
 Run just the miner without the solar stack:
 
 ```bash
+# CPU only
 docker run \
-  -e WALLET_USER="1Fyq3JegvpKDrfcEgyxJdQGfgZZjhDJ18P" \
+  -e ALGO=randomx \
+  -e POOL_ADDRESS=stratum+tcp://rx.unmineable.com:3333 \
+  -e WALLET_USER="BTC:your_wallet" \
+  -e EXTRAS="--disable-gpu --api-enable --api-port 21550 --extended-log" \
   ghcr.io/m8477/srbminer-multi-docker:latest
 ```
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| "Unknown algorithm" | Algorithm name is wrong. Use `randomx` for CPU, `heavyhash` for GPU. `kheavyhash` is NOT valid. |
+| Container exits code 0 instantly | Miner detects invalid algorithm or missing mining devices. Check `EXTRAS` and `ALGO`. |
+| "Huge-pages 2MB: disabled" | Set huge pages on host: `sudo sysctl -w vm.nr_hugepages=1280` |
+| "Run miner as administrator/root" | Container needs `privileged: true` for MSR tweaks |
+| DNS error connecting to pool | Verify pool URL. Zergpool is defunct — use Unmineable or another pool |
+| Miner container stays "exited" | Crash trap holds container alive. `docker logs srbminer` and `docker exec -it srbminer bash` |
+| SOLAR_MIN showing 0W in logs | Environment variable was set to empty string. Remove it or set explicit value |
 
 ## License
 

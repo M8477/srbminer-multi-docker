@@ -1,153 +1,62 @@
-# SRBMiner-Multi Docker
+# SRBMiner-Multi Docker — Solar Mining Stack
 
-SRBMiner-Multi Docker is a containerized cryptocurrency mining solution that packages the high-performance SRBMiner-Multi software for CPU and AMD GPU mining. The project creates and publishes Docker images to multiple container registries (Docker Hub, GHCR, and Quay.io).
+This project packages SRBMiner-MULTI as a Docker container for CPU and AMD GPU mining with solar-aware automation.
 
 Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.
 
-## Working Effectively
+## Key Facts
 
-### Bootstrap and Build
-- **Docker build**: `docker build --build-arg VERSION_TAG=2.9.7 -t srbminer-multi .`
-  - Clean build time: 10-14 seconds (measured). NEVER CANCEL. Set timeout to 30+ minutes for safety.
-  - Cached build time: <1 second when using existing layers
-  - Uses Debian trixie-slim base image  
-  - Downloads SRBMiner-Multi from GitHub releases using wget (SSL workaround included)
-  - **IMPORTANT**: Shows security warning about POOL_PASSWORD env var - this is expected and safe
-- **Build script**: `./build.sh`
-  - Builds Docker image and attempts to push to all registries
-  - Build phase: ~10-14 seconds (clean), <1 second (cached)
-  - Push phase: Will fail without proper authentication (expected in development)
-  - NEVER CANCEL: Set timeout to 60+ minutes for complete build and push operations
+- **Algorithm**: Default is dual mining `heavyhash;randomx` (GPU+CPU). Use semicolons for dual mining.
+- **Pool**: Unmineable (`rx.unmineable.com:3333`). Zergpool is defunct.
+- **Wallet format**: `BTC:<your_btc_address>` for Unmineable
+- **Pool password**: `x` for Unmineable
+- **Container runs as root** (privileged mode) for huge pages and MSR tweaks
+- **Crash trap**: Container stays alive on failure for `docker exec` inspection
+- **SRBMiner `--version` and `--list-algorithms` trigger interactive guided setup — NEVER call them**
+- **SRBMiner `kheavyhash` is NOT a valid algorithm name** — use `heavyhash` for GPU or `randomx` for CPU
+- **Dual mining requires 2 pool addresses** (comma-separated) — the start script auto-duplicates the pool if only 1 is provided
+- **Kraken sell bot exits gracefully if KRAKEN_KEY/KRAKEN_SECRET not set**
 
-### Testing and Validation
-- **Run container**: `docker run --rm test-image`
-  - Container starts mining software with default configuration
-  - Shows miner parameters correctly before attempting connection
-  - Exits quickly if pool connection fails (expected behavior)
-  - Use environment variables to customize: ALGO, POOL_ADDRESS, WALLET_USER, POOL_PASSWORD, EXTRAS
-- **Test different algorithms**: `docker run --rm -e ALGO=cpupower -e POOL_ADDRESS=test.pool.com:4444 test-image`
-- **API testing**: Container exposes port 80 for SRBMiner API when --api-enable flag is used
-  - Start with port mapping: `docker run -d -p 8080:80 test-image`
-  - API endpoints depend on SRBMiner-Multi version and configuration
-  - Connection may reset if miner exits quickly (expected when no pool connection)
-- **Environment variable validation**: `docker run --rm --entrypoint=/bin/bash test-image -c "env | grep -E '(ALGO|POOL|WALLET|POOL_PASSWORD)'"`
-  - Verify that custom environment variables override defaults correctly
+## Architecture
 
-### Build Process Validation
-Always validate these scenarios after making changes:
-1. **Basic build**: `docker build -t test .` completes successfully in 10-14 seconds
-2. **Container startup**: `docker run --rm test` shows miner parameters and attempts connection
-3. **Custom configuration**: Test with different ALGO and POOL_ADDRESS environment variables
-4. **Environment override**: `docker run --rm -e ALGO=verushash --entrypoint=/bin/bash test -c "env | grep ALGO"` 
-5. **File permissions**: `docker run --rm --entrypoint=/bin/bash test -c "ls -la /opt/SRBMiner-Multi/SRBMiner-MULTI && whoami"`
-6. **GitHub Actions**: Verify `.github/workflows/docker-image.yml` still works with your changes
+Three services in docker-compose:
 
-## Environment Setup
+1. **srbminer** — Miner container. `restart: "no"` because solar-controller manages starts/stops.
+   - Dual mining: `--algorithm-gpu heavyhash --algorithm-cpu randomx` when ALGO contains semicolon
+   - CPU failover: if GPU mining fails, retries with `--disable-gpu --algorithm randomx`
+   - privileged: true for huge pages + MSR tweaks
+   - HEALTHCHECK monitors SRBMiner-MULTI process
 
-### Prerequisites
-- Docker Engine installed and running
-- For builds: Access to GitHub releases (github.com)
-- For pushes: Authentication to Docker registries (docker.io, ghcr.io, quay.io)
+2. **solar-controller** — Polls Home Assistant, starts/stops miner container via Docker socket.
+   - Logic: mine when battery >= BATTERY_MIN% OR solar >= SOLAR_MINW
+   - FORCE_MINE=Y overrides for 30 minutes
+   - Detects unhealthy containers and restarts them
 
-### Build Arguments and Environment Variables
-- `VERSION_TAG`: SRBMiner-Multi version to download (default: 2.5.3, current: 2.9.7)
-- `ALGO`: Mining algorithm (default: "randomx")
-- `POOL_ADDRESS`: Mining pool URL (default: "stratum+ssl://rx.unmineable.com:443") 
-- `WALLET_USER`: Wallet address for mining (default: "LNec6RpZxX6Q1EJYkKjUPBTohM7Ux6uMUy")
-- `POOL_PASSWORD`: Pool password (default: "x")
-- `EXTRAS`: Additional SRBMiner flags (default: "--api-enable --api-port 80 --disable-auto-affinity --disable-gpu")
+3. **kraken-sell-bot** — Sells BTC on Kraken. Exits with code 0 if KRAKEN_KEY/KRAKEN_SECRET not set.
 
-**Note**: Environment variables can be overridden at runtime with `-e` flags
+## Important Implementation Details
 
-## Known Issues and Workarounds
+- `start_zergpool.sh`: Entry point that sets huge pages, detects dual mining, constructs proper SRBMiner command line
+- `ALGO=heavyhash;randomx` is split into `ALGO_GPU=heavyhash` and `ALGO_CPU=randomx` by the start script
+- For dual mining, POOL_ADDRESS, WALLET_USER, and POOL_PASSWORD are duplicated with commas (SRBMiner requires N pools for N algorithms)
+- `rm -f /.dockerenv` at startup to counter SRBMiner container detection
+- `tty: true` and `stdin_open: true` in compose for SRBMiner TTY check
+- `init: true` in compose uses tini as PID 1 instead of bash
+- Empty env vars (e.g. `SOLAR_MIN=`) use Python `or` pattern in controller to fall back to defaults
+- The image is published to GHCR only: `ghcr.io/m8477/srbminer-multi-docker:latest`
 
-### Docker Build Warning
-The Dockerfile produces a security warning about ENV "POOL_PASSWORD" - this is expected and safe for this mining application.
+## Build
 
-### SSL Certificate Issue
-The Dockerfile uses `wget --no-check-certificate` to download SRBMiner-Multi releases due to SSL certificate chain issues in some environments. This is a known limitation.
-
-### Registry Authentication
-The `build.sh` script will fail to push images without proper authentication tokens. This is expected in development environments. The build portion will succeed.
-
-### Container Exit Behavior
-Containers exit quickly when they cannot connect to mining pools. This is normal SRBMiner behavior, not a Docker issue.
-
-## Common Tasks
-
-The following are validated commands and their expected outcomes:
-
-### Repository Structure
-```
-.github/workflows/    # CI/CD pipelines
-├── docker-image.yml  # Main build workflow (runs ./build.sh)
-└── snyk-container.yml # Security scanning with SARIF file patching
-.dockerignore        # Excludes git, docs, temp files from build context
-.whitesource         # Mend (WhiteSource) security scanning configuration  
-Dockerfile           # Main container definition
-build.sh            # Build and push script for multiple registries
-start_zergpool.sh   # Container entrypoint script
-README.md           # Basic usage documentation
-LICENSE             # Apache License 2.0
-```
-
-### Build Commands
 ```bash
-# Basic build with default version (2.5.3)
-docker build -t srbminer-multi .
-
-# Build with specific version
-docker build --build-arg VERSION_TAG=2.9.7 -t srbminer-multi .
-
-# Build and tag for multiple registries (like build.sh does)
-./build.sh
+docker build --build-arg VERSION_TAG=3.2.8 -t srbminer-multi:local .
 ```
 
-### Run Commands
-```bash
-# Default configuration
-docker run --rm srbminer-multi
+VERSION_TAG and EXPECTED_MD5 must match the SRBMiner-Multi release.
 
-# Custom algorithm and pool
-docker run --rm -e ALGO=cpupower -e POOL_ADDRESS=your.pool.com:4444 -e WALLET_USER=your_wallet srbminer-multi
+## Environment Variables
 
-# With API port exposed
-docker run -d -p 8080:80 --name miner srbminer-multi
-```
-
-### File Structure Inside Container
-```
-/opt/SRBMiner-Multi/
-├── SRBMiner-MULTI        # Main executable
-├── start_zergpool.sh     # Startup script
-└── [other SRBMiner files from release]
-```
-
-## CI/CD Pipeline
-- **GitHub Actions**: Automatically builds on push to main branch
-- **Security Scanning**: Snyk container vulnerability scanning with advanced SARIF file patching
-- **Multi-registry Publishing**: Pushes to docker.io, ghcr.io, and quay.io (requires secrets)
-- **Mend Scanning**: WhiteSource security dependency scanning (.whitesource config)
-
-### Validated Timing
-- **Clean build**: 10-14 seconds (measured across multiple runs)
-- **Cached build**: <1 second when layers are cached
-- **Container startup**: <3 seconds to show parameters and attempt connection
-
-## Troubleshooting
-- If build fails with SSL errors: Verify wget --no-check-certificate is used in Dockerfile
-- If container exits immediately: Check pool connectivity or use test pool
-- If push fails: Verify registry authentication (expected to fail in development)
-- If GitHub Actions fail: Check if VERSION_TAG in build.sh matches available releases
-- If Docker build shows POOL_PASSWORD warning: This is expected and safe - ignore the warning
-- If environment variables not working: Use `docker run --rm --entrypoint=/bin/bash image -c "env | grep VAR_NAME"` to debug
-
-## Development Workflow
-1. Make changes to Dockerfile or scripts
-2. Test build: `docker build -t test .` (expect 10-14 seconds)
-3. Test container: `docker run --rm test` (should show miner parameters)
-4. Validate with different configurations:
-   - `docker run --rm -e ALGO=verushash -e POOL_ADDRESS=test.pool.com:4444 test`
-   - `docker run --rm --entrypoint=/bin/bash test -c "env | grep -E '(ALGO|POOL)'"`
-5. Test file structure: `docker run --rm --entrypoint=/bin/bash test -c "ls -la /opt/SRBMiner-Multi/"`
-6. Submit PR (GitHub Actions will validate the build)
+Key vars (see README.md for full list):
+- ALGO: `randomx` (CPU), `heavyhash` (GPU), or `heavyhash;randomx` (dual)
+- POOL_ADDRESS: Mining pool URL
+- WALLET_USER: Wallet address (format: `BTC:<address>` for Unmineable)
+- EXTRAS: Additional SRBMiner flags
