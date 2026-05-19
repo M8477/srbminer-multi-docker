@@ -16,6 +16,8 @@ Always reference these instructions first and fallback to search or bash command
 - **SRBMiner `kheavyhash` is NOT a valid algorithm name** — use `heavyhash` for GPU or `randomx` for CPU
 - **Dual mining requires 2 pool addresses** (comma-separated) — the start script auto-duplicates the pool if only 1 is provided
 - **Kraken sell bot exits gracefully if KRAKEN_KEY/KRAKEN_SECRET not set**
+- **GPU detection requires OpenCL**: Container installs `libdrm2`, `libdrm-amdgpu1`, `libnuma1`, `ocl-icd-opencl-dev` and registers `/etc/OpenCL/vendors/amdocl64.icd` pointing to `/opt/rocm/lib/libamdocl64.so`
+- **RDNA4/gfx1201 GPUs** (R9700, RX 9070): Supported by SRBMiner 2.8.0+ but need `/dev/dri` + `/dev/kfd` passthrough and ROCm volume mount. If GPU not detected, set `HSA_OVERRIDE_GFX_VERSION=11.0.0`
 
 ## Architecture
 

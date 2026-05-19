@@ -17,9 +17,10 @@ ENV HSA_ENABLE_SDMA=0
 ENV ROCR_VISIBLE_DEVICES=0
 ENV HIP_VISIBLE_DEVICES=0
 
+
 RUN apt-get -y update \
     && apt-get -y upgrade \
-    && apt-get -y install curl wget ca-certificates tar procps \
+    && apt-get -y install curl wget ca-certificates tar procps libdrm2 libdrm-amdgpu1 libnuma1 ocl-icd-opencl-dev \
     && update-ca-certificates \
     && cd /opt \
     && VERSION_STRING=$(echo "$VERSION_TAG" | tr '.' '-') \
@@ -33,6 +34,8 @@ RUN apt-get -y update \
     && chown -R srbminer:srbminer /opt/SRBMiner-Multi/ \
     && groupadd -fr video && groupadd -fr render \
     && usermod -aG video,render srbminer \
+    && mkdir -p /etc/OpenCL/vendors \
+    && echo "/opt/rocm/lib/libamdocl64.so" > /etc/OpenCL/vendors/amdocl64.icd \
     && apt-get -y autoremove --purge \
     && apt-get -y clean \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* \

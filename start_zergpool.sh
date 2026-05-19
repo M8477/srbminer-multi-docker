@@ -2,12 +2,12 @@
 
 rm -f /.dockerenv 2>/dev/null || true
 
-ALGO=${ALGO:-"randomx"}
+ALGO=${ALGO:-"heavyhash;randomx"}
 POOL_ADDRESS=${POOL_ADDRESS:-"stratum+tcp://rx.unmineable.com:3333"}
 WALLET_USER=${WALLET_USER:-""}
 WORKER_NAME=${WORKER_NAME:-""}
 POOL_PASSWORD=${POOL_PASSWORD:-"x"}
-EXTRAS=${EXTRAS:-"--disable-gpu --api-enable --api-port 21550 --extended-log"}
+EXTRAS=${EXTRAS:-"--api-enable --api-port 21550 --extended-log"}
 LOG_LEVEL=${LOG_LEVEL:-"info"}
 MINER_VERSION=${VERSION_TAG:-unknown}
 
@@ -138,6 +138,21 @@ fi
 log_debug "Binary: $(file ./SRBMiner-MULTI 2>/dev/null | cut -d: -f2-)"
 log_info "Checking shared library dependencies..."
 ldd ./SRBMiner-MULTI 2>/dev/null | grep -i "not found" && log_error "MISSING LIBRARIES ABOVE" || log_info "All libs OK"
+
+if [[ -d /dev/dri ]]; then
+    log_info "GPU devices: $(ls /dev/dri/ 2>/dev/null | tr '\n' ' ')"
+    if command -v clinfo &>/dev/null || [[ -x /opt/rocm/bin/rocminfo ]]; then
+        log_info "ROCmvisible devices:"
+        /opt/rocm/bin/rocminfo 2>/dev/null | grep -E "^\s+Name:.*gfx" | sed 's/^\s*/  /' || log_warn "rocminfo not available"
+    fi
+    if [[ -f /etc/OpenCL/vendors/amdocl64.icd ]]; then
+        log_info "OpenCL ICD: $(cat /etc/OpenCL/vendors/amdocl64.icd)"
+    else
+        log_warn "OpenCL ICD not found — GPU mining will likely fail"
+    fi
+else
+    log_warn "No /dev/dri — GPU device passthrough not configured"
+fi
 
 run_miner() {
     local extra_args="$EXTRAS $WORKER_FLAG $*"

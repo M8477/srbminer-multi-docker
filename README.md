@@ -108,17 +108,25 @@ Copy `.env.example` to `.env` and fill in:
 
 ## GPU Mining Setup
 
-GPU mining requires AMD ROCm drivers on the host and device mappings in docker-compose:
+GPU mining requires AMD ROCm drivers on the host and device mappings in docker-compose. The container includes OpenCL ICD registration and required libraries (`libdrm2`, `libdrm-amdgpu1`, `libnuma1`, `ocl-icd-opencl-dev`) for AMD GPU detection.
 
 ```yaml
 devices:
   - /dev/kfd:/dev/kfd
-  - /dev/dri/renderD129:/dev/dri/renderD129  # Adjust for your GPU
+  - /dev/dri              # Pass all DRI devices (includes renderD128, renderD129, etc.)
 ```
 
-Find your renderD device: `ls /dev/dri/renderD*`
+Find your renderD devices: `ls /dev/dri/renderD*`
 
 The container runs privileged for MSR tweaks and huge pages (significant RandomX performance boost). If you prefer lower privileges, set huge pages on the host instead.
+
+### RDNA4 / gfx1201 GPUs (Radeon AI PRO R9700, RX 9070 series)
+
+SRBMiner 3.2.8+ supports RDNA4 GPUs. If GPU detection fails, ensure:
+1. `/dev/dri` and `/dev/kfd` are passed through to the container
+2. ROCm is mounted at `/opt/rocm` (via volume)
+3. The OpenCL ICD is registered (container does this automatically at build time)
+4. `HSA_OVERRIDE_GFX_VERSION` can be set if needed (e.g. `11.0.0` for gfx1201)
 
 ## Portainer Deployment
 
@@ -190,7 +198,9 @@ docker run \
 | "Run miner as administrator/root" | Container needs `privileged: true` for MSR tweaks |
 | DNS error connecting to pool | Verify pool URL. Zergpool is defunct — use Unmineable or another pool |
 | Miner container stays "exited" | Crash trap holds container alive. `docker logs srbminer` and `docker exec -it srbminer bash` |
+| "No GPU devices" or "0 OpenCL platforms" | Missing ROCm libs or OpenCL ICD inside container. Ensure `/opt/rocm` volume mount and check `docker exec srbminer clinfo` |
 | SOLAR_MIN showing 0W in logs | Environment variable was set to empty string. Remove it or set explicit value |
+| GPU not detected (gfx1201/RDNA4) | Add `HSA_OVERRIDE_GFX_VERSION=11.0.0` env var. Ensure `/dev/dri` and `/dev/kfd` device passthrough |
 
 ## License
 
