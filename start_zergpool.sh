@@ -2,12 +2,12 @@
 
 rm -f /.dockerenv 2>/dev/null || true
 
-ALGO=${ALGO:-"heavyhash;randomx"}
+ALGO=${ALGO:-"randomx"}
 POOL_ADDRESS=${POOL_ADDRESS:-"stratum+tcp://rx.unmineable.com:3333"}
 WALLET_USER=${WALLET_USER:-""}
 WORKER_NAME=${WORKER_NAME:-""}
 POOL_PASSWORD=${POOL_PASSWORD:-"x"}
-EXTRAS=${EXTRAS:-"--api-enable --api-port 21550 --extended-log"}
+EXTRAS=${EXTRAS:-"--disable-gpu --api-enable --api-port 21550 --extended-log"}
 LOG_LEVEL=${LOG_LEVEL:-"info"}
 MINER_VERSION=${VERSION_TAG:-unknown}
 

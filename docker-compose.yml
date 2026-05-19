@@ -7,20 +7,24 @@ services:
     privileged: true
     devices:
       - /dev/kfd
-      - /dev/dri/renderD129
+      - /dev/dri
     security_opt:
-      - seccomp:unconfined
+      - seccomp=unconfined
     group_add:
       - video
+      - render
+    volumes:
+      - /opt/rocm:/opt/rocm
     environment:
-      - ALGO=heavyhash;randomx
+      - ALGO=randomx
       - POOL_ADDRESS=stratum+tcp://rx.unmineable.com:3333
       - WALLET_USER=BTC:${BTC_ADDRESS:-}
       - WORKER_NAME=${WORKER_NAME}
       - POOL_PASSWORD=x
-      - EXTRAS=--api-enable --api-port 21550 --extended-log
+      - EXTRAS=--disable-gpu --api-enable --api-port 21550 --extended-log
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - VERSION_TAG=${VERSION_TAG:-3.2.8}
+      - LD_LIBRARY_PATH=/opt/rocm/lib
       - HSA_ENABLE_SDMA=0
       - ROCR_VISIBLE_DEVICES=0
       - HIP_VISIBLE_DEVICES=0
