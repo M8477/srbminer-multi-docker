@@ -18,7 +18,7 @@ ENV HIP_VISIBLE_DEVICES=0
 
 RUN apt-get -y update \
     && apt-get -y upgrade \
-    && apt-get -y install curl wget ca-certificates tar procps \
+    && apt-get -y install curl wget ca-certificates tar procps strace \
     && update-ca-certificates \
     && cd /opt \
     && VERSION_STRING=$(echo "$VERSION_TAG" | tr '.' '-') \

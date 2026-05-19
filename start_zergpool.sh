@@ -19,10 +19,6 @@ crash_trap() {
     log_error ""
     log_error "========================================"
     log_error "  CONTAINER EXITING (exit code: $code)"
-    if [[ $code -ne 0 ]] && [[ "${DRY_RUN:-false}" != "true" ]]; then
-        log_error "  MINER CRASHED - holding container alive"
-        log_error "  Connect: docker exec -it srbminer bash"
-    fi
     log_error "========================================"
     log_error "Checking process list:"
     ps aux 2>/dev/null || echo "  (ps not available)"
@@ -36,8 +32,9 @@ crash_trap() {
         fi
     done
     log_error "Finished diagnostics."
-    if [[ $code -ne 0 ]] && [[ "${DRY_RUN:-false}" != "true" ]]; then
-        log_error "Holding container alive for inspection (healthcheck will mark unhealthy)..."
+    if [[ "${DRY_RUN:-false}" != "true" ]]; then
+        log_error "Holding container alive for inspection..."
+        log_error "Connect: docker exec -it srbminer bash"
         while true; do sleep 60; done
     fi
     exit $code
@@ -109,17 +106,27 @@ ldd ./SRBMiner-MULTI 2>/dev/null | grep -i "not found" && log_error "MISSING LIB
 run_miner() {
     local extra_args="$EXTRAS $WORKER_FLAG $*"
     log_info "Command: ./SRBMiner-MULTI --algorithm $ALGO --pool $POOL_ADDRESS --wallet <wallet> --password <password> $extra_args"
+    local start_time=$(date +%s)
     ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $extra_args --log-file /tmp/srbminer.log --log-file-mode 1 2>&1
     local exit_code=$?
+    local end_time=$(date +%s)
+    local elapsed=$((end_time - start_time))
     if [[ $exit_code -ne 0 ]]; then
-        log_error "Miner process exited with code $exit_code"
+        log_error "Miner process exited with code $exit_code after ${elapsed}s"
     else
-        log_info "Miner process exited with code $exit_code"
+        log_info "Miner process exited with code $exit_code after ${elapsed}s"
     fi
     if [[ -f /tmp/srbminer.log ]]; then
         log_info "=== Last 30 lines of miner log ==="
         tail -30 /tmp/srbminer.log 2>/dev/null || true
         log_info "=== End miner log ==="
+    else
+        log_warn "No miner log file found at /tmp/srbminer.log"
+    fi
+    if [[ $elapsed -lt 10 ]]; then
+        log_error "Miner exited in ${elapsed}s — running strace to diagnose..."
+        strace -f -e trace=open,openat,read,write,connect,socket ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $extra_args 2>&1 | tail -80 || true
+        log_error "=== strace done ==="
     fi
     return $exit_code
 }
