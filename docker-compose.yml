@@ -10,8 +10,6 @@ services:
       - /dev/dri/renderD129:/dev/dri/renderD129
     security_opt:
       - seccomp:unconfined
-    sysctls:
-      - vm.nr_hugepages=1280
     group_add:
       - video
     environment:
