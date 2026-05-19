@@ -39,9 +39,7 @@ RUN apt-get -y update \
 
 WORKDIR /opt/SRBMiner-Multi/
 COPY start_zergpool.sh .
-RUN chmod +x start_zergpool.sh && chown srbminer:srbminer start_zergpool.sh
-
-USER srbminer
+RUN chmod +x start_zergpool.sh
 
 EXPOSE 21550
 

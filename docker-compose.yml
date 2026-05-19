@@ -4,11 +4,14 @@ services:
     pull_policy: always
     container_name: srbminer
     init: true
+    privileged: true
     devices:
       - /dev/kfd:/dev/kfd
       - /dev/dri/renderD129:/dev/dri/renderD129
     security_opt:
-      - seccomp=unconfined
+      - seccomp:unconfined
+    sysctls:
+      - vm.nr_hugepages=1280
     group_add:
       - video
     environment:
