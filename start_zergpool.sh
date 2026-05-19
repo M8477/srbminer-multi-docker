@@ -102,8 +102,19 @@ fi
 
 log_debug "Binary: $(file ./SRBMiner-MULTI 2>/dev/null | cut -d: -f2-)"
 
+run_miner() {
+    local extra_args="$EXTRAS $WORKER_FLAG $*"
+    log_info "Command: ./SRBMiner-MULTI --algorithm $ALGO --pool $POOL_ADDRESS --wallet <wallet> --password <password> $extra_args"
+    ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $extra_args 2>&1
+    local exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+        log_error "Miner process exited with code $exit_code"
+    fi
+    return $exit_code
+}
+
 if [[ $GPU_ENABLED == true ]]; then
-    ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $WORKER_FLAG $EXTRAS
+    run_miner
     GPU_EXIT=$?
     if [[ $GPU_EXIT -ne 0 ]]; then
         log_error "GPU miner exited with code $GPU_EXIT — retrying CPU-only"
@@ -111,10 +122,11 @@ if [[ $GPU_ENABLED == true ]]; then
         log_info "  Retrying SRBMiner-MULTI v${MINER_VERSION}"
         log_info "  GPU mode:   disabled (failover)"
         log_info "----------------------------------------"
-        ./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $WORKER_FLAG $EXTRAS --disable-gpu
+        run_miner --disable-gpu
         GPU_EXIT=$?
     fi
     exit $GPU_EXIT
+else
+    run_miner
+    exit $?
 fi
-
-./SRBMiner-MULTI --algorithm "$ALGO" --pool "$POOL_ADDRESS" --wallet "$WALLET_USER" --password "$POOL_PASSWORD" $WORKER_FLAG $EXTRAS
