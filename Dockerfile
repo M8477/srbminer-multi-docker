@@ -4,10 +4,10 @@ ARG VERSION_TAG=3.2.8
 ARG EXPECTED_MD5=cc11aac80688bd6b42e382ab02127a0e
 
 ENV ALGO="randomx"
-ENV POOL_ADDRESS="stratum+tcp://rx.eu.mine.zergpool.com:4457"
-ENV WALLET_USER="1Fyq3JegvpKDrfcEgyxJdQGfgZZjhDJ18P"
+ENV POOL_ADDRESS="stratum+tcp://rx.unmineable.com:3333"
+ENV WALLET_USER="BTC:1Fyq3JegvpKDrfcEgyxJdQGfgZZjhDJ18P"
 ENV WORKER_NAME=""
-ENV POOL_PASSWORD="c=BTC"
+ENV POOL_PASSWORD="x"
 ENV EXTRAS="--disable-gpu --api-enable --api-port 21550 --extended-log"
 ENV LOG_LEVEL="info"
 ENV DRY_RUN="false"

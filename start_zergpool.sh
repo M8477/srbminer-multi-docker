@@ -4,10 +4,10 @@ rm -f /.dockerenv 2>/dev/null || true
 mkdir -p /dev/shm/.dockerenv_mask 2>/dev/null && rmdir /dev/shm/.dockerenv_mask 2>/dev/null || true
 
 ALGO=${ALGO:-"randomx"}
-POOL_ADDRESS=${POOL_ADDRESS:-"stratum+tcp://rx.eu.mine.zergpool.com:4457"}
+POOL_ADDRESS=${POOL_ADDRESS:-"stratum+tcp://rx.unmineable.com:3333"}
 WALLET_USER=${WALLET_USER:-""}
 WORKER_NAME=${WORKER_NAME:-""}
-POOL_PASSWORD=${POOL_PASSWORD:-"c=BTC"}
+POOL_PASSWORD=${POOL_PASSWORD:-"x"}
 EXTRAS=${EXTRAS:-"--disable-gpu --api-enable --api-port 21550 --extended-log"}
 LOG_LEVEL=${LOG_LEVEL:-"info"}
 MINER_VERSION=${VERSION_TAG:-unknown}

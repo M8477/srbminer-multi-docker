@@ -13,10 +13,10 @@ services:
       - video
     environment:
       - ALGO=randomx
-      - POOL_ADDRESS=stratum+tcp://rx.eu.mine.zergpool.com:4457
-      - WALLET_USER=${BTC_ADDRESS:-} 
+      - POOL_ADDRESS=stratum+tcp://rx.unmineable.com:3333
+      - WALLET_USER=BTC:${BTC_ADDRESS:-}
       - WORKER_NAME=${WORKER_NAME}
-      - POOL_PASSWORD=c=BTC
+      - POOL_PASSWORD=x
       - EXTRAS=--disable-gpu --api-enable --api-port 21550 --extended-log
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - VERSION_TAG=${VERSION_TAG:-3.2.8}
