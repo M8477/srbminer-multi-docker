@@ -1,7 +1,7 @@
 FROM debian:trixie-slim
 
-ARG VERSION_TAG=3.2.8
-ARG EXPECTED_MD5=cc11aac80688bd6b42e382ab02127a0e
+ARG VERSION_TAG=3.3.0
+ARG EXPECTED_MD5=e8b1200d7058afe8bcb49c6571c78b0d
 
 ENV ALGO="autolykos2;randomx"
 ENV POOL_ADDRESS="stratum+tcp://autolykos.unmineable.com:3333"
