@@ -77,12 +77,14 @@ while True:
                     battery = ha_state(BATTERY_ENTITY)
                     solar   = ha_state(SOLAR_ENTITY)
                     should_mine = battery >= BATTERY_MIN or solar >= SOLAR_MIN
-                    log(f"  Battery: {battery:.1f}% | Solar: {solar:.0f}W | Mine: {should_mine}")
+                    mine_reason = "battery" if battery >= BATTERY_MIN else "solar" if solar >= SOLAR_MIN else "none"
+                    log(f"  Battery: {battery:.1f}% | Solar: {solar:.1f}W | Mine: {should_mine} (reason: {mine_reason})")
         else:
             battery = ha_state(BATTERY_ENTITY)
             solar   = ha_state(SOLAR_ENTITY)
             should_mine = battery >= BATTERY_MIN or solar >= SOLAR_MIN
-            log(f"Battery: {battery:.1f}% | Solar: {solar:.0f}W | Mine: {should_mine} (battery{' >=' if battery >= BATTERY_MIN else ' <'}{BATTERY_MIN}% {'||' if should_mine else '&&'} solar{' >=' if solar >= SOLAR_MIN else ' <'}{SOLAR_MIN}W)")
+            mine_reason = "battery" if battery >= BATTERY_MIN else "solar" if solar >= SOLAR_MIN else "none"
+            log(f"Battery: {battery:.1f}% | Solar: {solar:.1f}W | Mine: {should_mine} (reason: {mine_reason})")
 
         try:
             miner = client.containers.get(MINER_NAME)
